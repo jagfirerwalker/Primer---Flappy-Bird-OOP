@@ -1,6 +1,7 @@
 // Flappy Bird Clone - Object-oriented Programming in C++
 
 #include <SFML/Graphics.hpp>
+#include <iostream>
 
 // Bird class
 class Bird {
@@ -14,48 +15,60 @@ private:
 public:
 	Bird() {
 		// Load the bird texture
-		birdTexture.loadFromFile("bird.png");
+		if (!birdTexture.loadFromFile("bird.png")) {
+			std::cout << "Error loading bird.png" << std::endl;
+		}
 		birdSprite.setTexture(birdTexture);
 
-
 		// Set the initial position of the bird
-		birdSprite.setPosition(100, 200);
-		birdSprite.setScale(0.1f, 0.1f);
+		birdSprite.setPosition(200, 144);
+		birdSprite.setScale(1.0f, 1.0f);
 
 		// Initial velocity, gravity and flap strength
-		velocity = sf::Vector2f(0, 0);
-		gravity = 0.5f;
-		flapStrength = -8.0f;
+		birdVelocity = sf::Vector2f(0, 0);
+		gravity = 0.05;
+		flapStrength = -1.0f;
 	}
 
 	void flap() {
 		// Apply flap strength to the bird's velocity
-		velocity.y = flapStrength;
+		birdVelocity.y = flapStrength;
 	}
 
 	void update() {
 		// Apply gravity to the bird's velocity
-		velocity.y += gravity;
+		birdVelocity.y += gravity;
+
+		// Limit the maximum falling speed
+		const float maxFallSpeed = 0.5;
+		if (birdVelocity.y > maxFallSpeed) {
+			birdVelocity.y = maxFallSpeed;
+		}	
 
 		// Update the position of the bird
-		birdSprite.move(velocity);
+		birdSprite.move(birdVelocity);
 	}
 
 	// Draw the bird on the window
-	void draw(sf::RenderWindow& window) {
+	void draw(sf::RenderWindow& window) const {
 		// Draw the bird sprite
 		window.draw(birdSprite);
+	}
+
+	sf::Vector2f getPosition() const {
+		return birdSprite.getPosition();
 	}
 };
 
 int main() {
 	// create the game window
-	sf::RenderWindow window(sf::VideoMode(800, 600), "Flappy Bird");
+	sf::RenderWindow window(sf::VideoMode(1366, 768), "Flappy Bird");
 
 	// Create the background sprite
 	sf::Texture backgroundTexture;
 	backgroundTexture.loadFromFile("background.png");
 	sf::Sprite backgroundSprite(backgroundTexture);
+	//backgroundSprite.setScale(1.0f, 2.0f);
 
 	// Create the bird object
 	Bird bird;
@@ -86,6 +99,8 @@ int main() {
 
 		// Draw the bird
 		bird.draw(window);
+
+		std::cout << "Bird position: " << bird.getPosition().x << ", " << bird.getPosition().y << std::endl;
 
 		// Display the window
 		window.display();
