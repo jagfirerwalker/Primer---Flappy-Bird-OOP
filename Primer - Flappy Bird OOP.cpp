@@ -71,13 +71,23 @@ public:
 };
 
 int main() {
+	// Create a clock to measure the elapsed time
+	sf::Clock clock;
+	
 	// create the game window
 	sf::RenderWindow window(sf::VideoMode(1366, 768), "Flappy Bird");
 
 	// Create the background sprite
 	sf::Texture backgroundTexture;
 	backgroundTexture.loadFromFile("background.png");
-	sf::Sprite backgroundSprite(backgroundTexture);
+	sf::Sprite backgroundSprite1(backgroundTexture);
+	sf::Sprite backgroundSprite2(backgroundTexture);
+
+	// Position the second background sprite to the right of the first one
+	backgroundSprite2.setPosition(backgroundTexture.getSize().x, 0);
+
+	// Set the scolling speed of the background
+	float scrollSpeed = 50.0f;
 
 
 	// Create the bird object
@@ -98,6 +108,24 @@ int main() {
 			}
 		}
 
+		// Measure the elapsed time since the last frame
+		sf::Time elapsed = clock.restart();
+
+		// Calculate the scrolling offset based on the elapsed time
+		float scrollOffset = scrollSpeed * elapsed.asSeconds();
+
+		// Update the background sprites' positions
+		backgroundSprite1.move(-scrollOffset, 0);
+		backgroundSprite2.move(-scrollOffset, 0);
+
+		// Wrap the background sprites when they go off the screen
+		if (backgroundSprite1.getPosition().x <= -backgroundTexture.getSize().x) {
+			backgroundSprite1.setPosition(backgroundSprite2.getPosition().x + backgroundTexture.getSize().x, 0);
+		}
+		if (backgroundSprite2.getPosition().x <= -backgroundTexture.getSize().x) {
+			backgroundSprite2.setPosition(backgroundSprite1.getPosition().x + backgroundTexture.getSize().x, 0);
+		}
+
 		// Update the bird
 		bird.update(window);
 
@@ -105,7 +133,8 @@ int main() {
 		window.clear();
 
 		// Draw the background
-		window.draw(backgroundSprite);
+		window.draw(backgroundSprite1);
+		window.draw(backgroundSprite2);
 
 		// Draw the bird
 		bird.drawBird(window);
