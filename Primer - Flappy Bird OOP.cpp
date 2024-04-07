@@ -6,144 +6,196 @@
 // Bird class
 class Bird {
 private:
-	sf::Texture birdTexture;
-	sf::Sprite birdSprite;
-	sf::Vector2f birdVelocity;
+	sf::Texture texture;
+	sf::Sprite sprite;
+	sf::Vector2f velocity;
 	float gravity;
 	float flapStrength;
 
 public:
-	Bird() {
-		// Load the bird texture
-		if (!birdTexture.loadFromFile("bird.png")) {
-			std::cout << "Error loading bird.png" << std::endl;
-		}
-		birdSprite.setTexture(birdTexture);
-
-		// Set the initial position of the bird
-		birdSprite.setPosition(200, 144);
-		birdSprite.setScale(1.0f, 1.0f);
-
-		// Initial velocity, gravity and flap strength
-		birdVelocity = sf::Vector2f(0, 0);
-		gravity = 0.005;
-		flapStrength = -1.0f;
-	}
-
-	void flap() {
-		// Apply flap strength to the bird's velocity
-		birdVelocity.y = flapStrength;
-	}
-
-	void update(const sf::RenderWindow& window) {
-		// Apply gravity to the bird's velocity
-		birdVelocity.y += gravity;
-
-		// Update the position of the bird
-		birdSprite.move(birdVelocity);
-
-		// Keep the bird within the window bounds
-		sf::Vector2f birdPosition = birdSprite.getPosition();
-		sf::FloatRect birdBounds = birdSprite.getGlobalBounds();
-
-		// Check if the bird is above the window bounds
-		if (birdPosition.y < 0) {
-			birdSprite.setPosition(birdPosition.x, 0);
-			birdVelocity.y = -birdVelocity.y * 0.08f; // Reverse the velocity and apply damping
-		}
-
-		// Check if the bird is going below the window bounds
-		if (birdPosition.y + birdBounds.height > window.getSize().y) {
-			birdSprite.setPosition(birdPosition.x, window.getSize().y - birdBounds.height);
-			birdVelocity.y = -birdVelocity.y * 0.8f; // Reverse the velocity and apply damping
-		}
-	}
-
-	// Draw the bird on the window
-	void drawBird(sf::RenderWindow& window) const {
-		// Draw the bird sprite
-		window.draw(birdSprite);
-	}
-
-	sf::Vector2f getVelocity() const {
-		return birdVelocity;
-	}
+	Bird(const std::string& texturePath, const sf::Vector2f& position);
+	void flap();
+	void update();
+	void draw(sf::RenderWindow& window) const;
+	sf::FloatRect getBrounds() const;
+	void setPosition(const sf::Vector2f& position);
+	sf::Vector2f getVelocity() const;
+	void setVelocity(const sf::Vector2f& velocity);
 };
 
-int main() {
-	// Create a clock to measure the elapsed time
-	sf::Clock clock;
-	
-	// create the game window
-	sf::RenderWindow window(sf::VideoMode(1366, 768), "Flappy Bird");
+// Bird class functions
+// Constructor setting bird texture and position, gravity and flap strength
+Bird::Bird(const std::string& texturePath, const sf::Vector2f& position)
+	: gravity(0.0005f), flapStrength(-0.5f) {
+	if (!texture.loadFromFile(texturePath)) {
+		std::cout << "Error loading bird texture" << std::endl;
+	}
+	sprite.setTexture(texture);
+	sprite.setPosition(position);
+	sprite.setScale(1.0f, 1.0f);
 
-	// Create the background sprite
-	sf::Texture backgroundTexture;
-	backgroundTexture.loadFromFile("background.png");
-	sf::Sprite backgroundSprite1(backgroundTexture);
-	sf::Sprite backgroundSprite2(backgroundTexture);
+}
 
-	// Position the second background sprite to the right of the first one
-	backgroundSprite2.setPosition(backgroundTexture.getSize().x, 0);
+// Flap function to make bird jump
+void Bird::flap() {
+	velocity.y = flapStrength;
+}
 
-	// Set the scolling speed of the background
-	float scrollSpeed = 50.0f;
+// Update bird position by applying gravity
+void Bird::update() {
+	velocity.y += gravity;
+	sprite.move(velocity);
+}
 
+// Draw bird on window
+void Bird::draw(sf::RenderWindow& window) const {
+	window.draw(sprite);
+}
 
-	// Create the bird object
+// Get bird bounds for collision detection
+sf::FloatRect Bird::getBrounds() const {
+	return sprite.getGlobalBounds();
+}
+
+// Get and set bird position for collision detection
+void Bird::setPosition(const sf::Vector2f& position) {
+	sprite.setPosition(position);
+}
+
+// Get and set bird velocity for gravity and jumping
+sf::Vector2f Bird::getVelocity() const {
+	return velocity;
+}
+
+// Set bird velocity for gravity and jumping
+void Bird::setVelocity(const sf::Vector2f& velocity) {
+	this -> velocity = velocity;
+}
+
+// ScrollingBackground class
+class ScrollingBackground {
+private:
+	sf::Texture texture;
+	sf::Sprite sprite1;
+	sf::Sprite sprite2;
+	float scrollSpeed;
+
+public:
+	ScrollingBackground(const std::string& texturePath, float scrollSpeed);
+	void update(float deltaTime);
+	void draw(sf::RenderWindow& window) const;
+};
+
+// ScrollingBackground class functions
+// Constructor setting background texture and scroll speed
+ScrollingBackground::ScrollingBackground(const std::string& texturePath, float scrollSpeed)
+	: scrollSpeed(scrollSpeed) {
+	if (!texture.loadFromFile(texturePath)) {
+		std::cout << "Error loading background texture" << std::endl;
+	}
+	sprite1.setTexture(texture);
+	sprite2.setTexture(texture);
+	sprite2.setPosition(texture.getSize().x, 0); // setting second background sprite position to the right of the first sprite
+}
+
+// Update background position by scrolling it to the left
+void ScrollingBackground::update(float deltaTime) {
+	float scrollOffset = scrollSpeed * deltaTime;
+	sprite1.move(-scrollOffset, 0);
+	sprite2.move(-scrollOffset, 0);
+
+	// Wrap the background sprites when they go off the screen
+	if (sprite1.getPosition().x <= -sprite1.getTextureRect().width) {
+		sprite1.setPosition(sprite2.getPosition().x + sprite2.getTextureRect().width, 0);
+	}
+	if (sprite2.getPosition().x <= -sprite2.getTextureRect().width) {
+		sprite2.setPosition(sprite1.getPosition().x + sprite1.getTextureRect().width, 0);
+	}
+}
+
+// Draw background on window
+void ScrollingBackground::draw(sf::RenderWindow& window) const {
+	window.draw(sprite1);
+	window.draw(sprite2);
+}
+
+// Game Class
+class Game {
+private :
+	sf::RenderWindow window;
 	Bird bird;
+	ScrollingBackground background;
 
-	// Game loop
+public:
+	Game();
+	void run();
+	
+private:
+	void processEvents();
+	void update(float deltaTime);
+	void render();
+};
+
+// Game class functions
+// Constructor setting window size and title, bird file and position, background file and scroll speed
+Game::Game()
+	: window(sf::VideoMode(1440, 1080), "Flappy Bird"), // setting window size and title
+	bird("bird.png", sf::Vector2f(200.0f, 144.0f)), // setting bird file and position
+	background("background.png", 150.0f) {} // setting backgound file and scroll speed
+
+// Game run function
+void Game::run() {
+	sf::Clock clock; // creating clock object to measure time
 	while (window.isOpen()) {
-		// Handle events
-		sf::Event event;
-		while (window.pollEvent(event)) {
-			// Close the window when the close button is clicked
-			if (event.type == sf::Event::Closed) {
-				window.close();
-			}
-			// Handle spacebar key press to make the bird flap
-			if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-				bird.flap();
-			}
+		processEvents(); // check for user input
+		sf::Time elapsed = clock.restart(); // get time elapsed since last restart
+		update(elapsed.asSeconds()); // update the game objects (bird and background)
+		render();
+	}
+}
+
+// Get user input events => close window or flap bird (space key)
+void Game::processEvents() {
+	sf::Event event;
+	while (window.pollEvent(event)) {
+		if (event.type == sf::Event::Closed) {
+			window.close();
 		}
-
-		// Measure the elapsed time since the last frame
-		sf::Time elapsed = clock.restart();
-
-		// Calculate the scrolling offset based on the elapsed time
-		float scrollOffset = scrollSpeed * elapsed.asSeconds();
-
-		// Update the background sprites' positions
-		backgroundSprite1.move(-scrollOffset, 0);
-		backgroundSprite2.move(-scrollOffset, 0);
-
-		// Wrap the background sprites when they go off the screen
-		if (backgroundSprite1.getPosition().x <=  -backgroundSprite1.getTextureRect().width) {
-			backgroundSprite1.setPosition(backgroundSprite2.getPosition().x + backgroundSprite2.getTextureRect().width, 0);
+		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
+			bird.flap(); // flap bird when space key is pressed
 		}
-		if (backgroundSprite2.getPosition().x <= -backgroundSprite2.getTextureRect().width) {
-			backgroundSprite2.setPosition(backgroundSprite1.getPosition().x + backgroundSprite1.getTextureRect().width, 0);
-		}
+	}
+}
 
-		// Update the bird
-		bird.update(window);
+// Update game objects (bird and background)
+void Game::update(float deltaTime) {
+	bird.update(); // update bird position
+	background.update(deltaTime);
 
-		// Clear the window
-		window.clear();
-
-		// Draw the background
-		window.draw(backgroundSprite1);
-		window.draw(backgroundSprite2);
-
-		// Draw the bird
-		bird.drawBird(window);
-
-		std::cout << "Bird position: " << bird.getVelocity().x << ", " << bird.getVelocity().y << std::endl;
-
-		// Display the window
-		window.display();
+	sf::FloatRect birdBounds = bird.getBrounds();
+	if (birdBounds.top < 0) {
+		bird.setPosition(sf::Vector2f(birdBounds.left, 0));
+		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.08f));
+	}
+	else if (birdBounds.top + birdBounds.height > window.getSize().y) {
+		bird.setPosition(sf::Vector2f(birdBounds.left, window.getSize().y - birdBounds.height));
+		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.8f));
 	}
 
-	return 0;
+}
+
+void Game::render() {
+	window.clear();
+	background.draw(window);
+	bird.draw(window);
+	window.display();
+
+}
+
+// Main function
+int main() {
+
+	Game game; // creating game object
+	game.run(); // running game
+	return 0;	
 }
