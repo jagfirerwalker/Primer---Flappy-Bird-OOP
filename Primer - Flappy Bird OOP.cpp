@@ -119,11 +119,11 @@ int main() {
 		backgroundSprite2.move(-scrollOffset, 0);
 
 		// Wrap the background sprites when they go off the screen
-		if (backgroundSprite1.getPosition().x <= -backgroundTexture.getSize().x) {
-			backgroundSprite1.setPosition(backgroundSprite2.getPosition().x + backgroundTexture.getSize().x, 0);
+		if (backgroundSprite1.getPosition().x <=  -backgroundSprite1.getTextureRect().width) {
+			backgroundSprite1.setPosition(backgroundSprite2.getPosition().x + backgroundSprite2.getTextureRect().width, 0);
 		}
-		if (backgroundSprite2.getPosition().x <= -backgroundTexture.getSize().x) {
-			backgroundSprite2.setPosition(backgroundSprite1.getPosition().x + backgroundTexture.getSize().x, 0);
+		if (backgroundSprite2.getPosition().x <= -backgroundSprite2.getTextureRect().width) {
+			backgroundSprite2.setPosition(backgroundSprite1.getPosition().x + backgroundSprite1.getTextureRect().width, 0);
 		}
 
 		// Update the bird
