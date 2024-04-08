@@ -250,6 +250,7 @@ void Game::update(float deltaTime) {
 
 }
 
+// Render game objects (bird and background)
 void Game::render() {
 	window.clear();
 	background.draw(window);
