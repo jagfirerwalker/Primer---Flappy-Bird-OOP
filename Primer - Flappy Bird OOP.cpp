@@ -15,7 +15,7 @@ private:
 public:
 	Bird(const std::string& texturePath, const sf::Vector2f& position);
 	void flap();
-	void update();
+	void update(bool gravityEnabled = true);
 	void draw(sf::RenderWindow& window) const;
 	sf::FloatRect getBrounds() const;
 	void setPosition(const sf::Vector2f& position);
@@ -42,8 +42,10 @@ void Bird::flap() {
 }
 
 // Update bird position by applying gravity
-void Bird::update() {
-	velocity.y += gravity;
+void Bird::update(bool gravityEnabled) {
+	if (gravityEnabled) {
+		velocity.y += gravity;
+	}
 	sprite.move(velocity);
 }
 
@@ -71,6 +73,8 @@ sf::Vector2f Bird::getVelocity() const {
 void Bird::setVelocity(const sf::Vector2f& velocity) {
 	this -> velocity = velocity;
 }
+
+
 
 // ScrollingBackground class
 class ScrollingBackground {
@@ -119,12 +123,66 @@ void ScrollingBackground::draw(sf::RenderWindow& window) const {
 	window.draw(sprite2);
 }
 
+// Ground class
+class ScrollingGround {
+private:
+	sf::Texture texture;
+	sf::Sprite sprite1;
+	sf::Sprite sprite2;
+	float scrollSpeed;
+
+public:
+	ScrollingGround(const std::string& texturePath, float scrollSpeed, const sf::Vector2u& windowSize);
+	void update(float deltaTime);
+	void draw(sf::RenderWindow& window) const;
+};
+
+// Ground class functions
+// Constructor setting ground texture and scroll speed
+ScrollingGround::ScrollingGround(const std::string& texturePath, float scrollSpeed, const sf::Vector2u& windowSize)
+	: scrollSpeed(scrollSpeed) {
+	if (!texture.loadFromFile(texturePath)) {
+		std::cout << "Error loading ground texture" << std::endl;
+	}
+	sprite1.setTexture(texture);
+	sprite2.setTexture(texture);
+	sprite1.setPosition(0, windowSize.y - texture.getSize().y); // setting first ground sprite position at the bottom of the window
+	sprite2.setPosition(texture.getSize().x, windowSize.y - texture.getSize().y); // setting second ground sprite position to the right of the first sprite
+}
+
+// Update ground position by scrolling it to the left
+void ScrollingGround::update(float deltaTime) {
+	float scrollOffset = scrollSpeed * deltaTime;
+	sprite1.move(-scrollOffset, 0);
+	sprite2.move(-scrollOffset, 0);
+
+	// Get the width of the sprite
+	float spriteWidth = sprite1.getTextureRect().width;
+
+	// Wrap the ground sprites when they go off the screen
+	if (sprite1.getPosition().x <= -spriteWidth) {
+		sprite1.setPosition(sprite2.getPosition().x + spriteWidth, sprite1.getPosition().y);
+	}
+	if (sprite2.getPosition().x <= -spriteWidth) {
+		sprite2.setPosition(sprite1.getPosition().x + spriteWidth, sprite2.getPosition().y);
+	}
+
+
+}
+
+// Draw ground on window
+void ScrollingGround::draw(sf::RenderWindow& window) const {
+	window.draw(sprite1);
+	window.draw(sprite2);
+}
 // Game Class
 class Game {
 private :
 	sf::RenderWindow window;
 	Bird bird;
 	ScrollingBackground background;
+	ScrollingGround ground;
+	bool firstSpacePress;
 
 public:
 	Game();
@@ -140,8 +198,10 @@ private:
 // Constructor setting window size and title, bird file and position, background file and scroll speed
 Game::Game()
 	: window(sf::VideoMode(1440, 1080), "Flappy Bird"), // setting window size and title
-	bird("bird.png", sf::Vector2f(200.0f, 144.0f)), // setting bird file and position
-	background("background.png", 150.0f) {} // setting backgound file and scroll speed
+	bird("assets/bird.png", sf::Vector2f(200.0f, window.getSize().y / 2)), // setting bird file and position
+	background("assets/background.png", 150.0f), // setting backgound file and scroll speed
+	ground("assets/ground.png", 50.0f, window.getSize()),  // placing ground file
+	firstSpacePress(true) {} // setting first space press to true
 
 // Game run function
 void Game::run() {
@@ -162,6 +222,11 @@ void Game::processEvents() {
 			window.close();
 		}
 		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
+			if (firstSpacePress) {
+				bird.update(firstSpacePress); // update bird position and enable gravity
+				firstSpacePress = false; // set first space press to false
+
+			}
 			bird.flap(); // flap bird when space key is pressed
 		}
 	}
@@ -169,17 +234,18 @@ void Game::processEvents() {
 
 // Update game objects (bird and background)
 void Game::update(float deltaTime) {
-	bird.update(); // update bird position
-	background.update(deltaTime);
+	bird.update(!firstSpacePress); // update bird position
+	background.update(deltaTime); // update background position
+	ground.update(deltaTime); // update ground position
 
 	sf::FloatRect birdBounds = bird.getBrounds();
 	if (birdBounds.top < 0) {
 		bird.setPosition(sf::Vector2f(birdBounds.left, 0));
-		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.08f));
+		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.3f));
 	}
 	else if (birdBounds.top + birdBounds.height > window.getSize().y) {
 		bird.setPosition(sf::Vector2f(birdBounds.left, window.getSize().y - birdBounds.height));
-		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.8f));
+		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.5f));
 	}
 
 }
@@ -187,6 +253,7 @@ void Game::update(float deltaTime) {
 void Game::render() {
 	window.clear();
 	background.draw(window);
+	ground.draw(window);
 	bird.draw(window);
 	window.display();
 
