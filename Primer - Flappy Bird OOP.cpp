@@ -250,6 +250,7 @@ void Game::update(float deltaTime) {
 
 }
 
+// Render game objects (bird and background)
 void Game::render() {
 	window.clear();
 	background.draw(window);
@@ -259,9 +260,8 @@ void Game::render() {
 
 }
 
-// Main function
+// Main function to run the game
 int main() {
-
 	Game game; // creating game object
 	game.run(); // running game
 	return 0;	
