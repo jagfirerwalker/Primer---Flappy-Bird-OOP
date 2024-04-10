@@ -1,4 +1,10 @@
 // Flappy Bird Clone - Object-oriented Programming in C++
+// Possible pivot: Make it based on poem like the one from Tomorrow tomorrow and Tomorrow
+// Poem  from Emily Dickinson
+		//That Love is is all there is,
+		//Is all we know of Love;
+		//It is enough, the freight should be
+		//Proportioned to the groove.
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
