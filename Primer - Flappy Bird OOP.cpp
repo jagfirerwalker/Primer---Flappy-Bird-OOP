@@ -8,6 +8,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <fstream>
 
 // Bird class
 class Bird {
@@ -50,9 +51,9 @@ void Bird::flap() {
 // Update bird position by applying gravity
 void Bird::update(bool gravityEnabled) {
 	if (gravityEnabled) {
-		velocity.y += gravity;
+		velocity.y += gravity * 60.0f; // Multiply gravity by the frame rate
 	}
-	sprite.move(velocity);
+	sprite.move(velocity * 60.0f);
 }
 
 // Draw bird on window
@@ -181,6 +182,133 @@ void ScrollingGround::draw(sf::RenderWindow& window) const {
 	window.draw(sprite1);
 	window.draw(sprite2);
 }
+
+// StartScreen class
+// Start screen to display before the game starts
+class StartScreen {
+private:
+	sf::RectangleShape backgroundBox;
+	sf::Text text;
+
+public:
+	sf::Font font;
+	StartScreen(const sf::Vector2u& windowSize);
+	void draw(sf::RenderWindow& window) const;
+	bool isVisible;
+};
+
+// StartScreen font, background and text setup
+StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(true) {
+	// Load the font
+	if (!font.loadFromFile("assets/arial.ttf")) {
+		std::cout << "Error loading front" << std::endl;
+	}
+
+	// Set up the background box
+	backgroundBox.setSize(sf::Vector2f( 400.0f, 100.0f));
+	backgroundBox.setFillColor(sf::Color::Black);
+	backgroundBox.setPosition(
+		(windowSize.x - backgroundBox.getSize().x) / 2.0f,
+		(windowSize.y - backgroundBox.getSize().y) / 2.0f
+	);
+
+	// Set up the text
+	text.setFont(font);
+	text.setString("Press 'Space' to Start");
+	text.setCharacterSize(24);
+	text.setFillColor(sf::Color::White);
+	text.setPosition(
+		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
+		(windowSize.y - text.getGlobalBounds().height) / 2.0f
+	);
+
+}
+
+// Draw the StartScreen when isVisible is true
+void StartScreen::draw(sf::RenderWindow& window) const {
+	if (isVisible) {
+		window.draw(backgroundBox);
+		window.draw(text);
+	}
+}
+
+// FloatingWords class
+// Class to display floating words on the screen
+class FloatingWords {
+private:
+	std::vector<sf::Text> words;
+	std::vector<float> spawnTimes;
+	sf::Font font;
+	float speed;
+	float spawnInterval;
+	float startTime;
+
+public:
+	FloatingWords(const std::string& filePath, const sf::Font& font, float speed, float speedspawnIntervalInterval, const sf::Vector2u& windowSize);
+	void update(float deltaTime);
+	void draw(sf::RenderWindow& window) const;
+	bool isVisible;
+	void setStartTime(float time); 
+};
+
+// Load words from file and set their position and speed
+// push_back words and spawn times to vectors
+FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, float speed, float spawnInterval, const sf::Vector2u& windowSize)
+	: font(font), speed(speed), isVisible(false), startTime(-1.0f) {
+	
+	// Read the text from the file
+	std::ifstream file(filePath);
+	if (file.is_open()) {
+		std::string word;
+		float currentTime = 0.0f; // Set the current time to 0
+
+		while (file >> word) { // Read each word from the file
+			sf::Text text;
+			text.setFont(font);
+			text.setString(word);
+			text.setCharacterSize(24);
+			text.setFillColor(sf::Color::White);
+			text.setPosition(windowSize.x, std::rand() % (windowSize.y - static_cast<int>(text.getGlobalBounds().height)));
+			words.push_back(text);
+			spawnTimes.push_back(currentTime);
+			currentTime += spawnInterval;
+		}
+		file.close();
+
+	}
+	
+}
+
+// Update floating words position by moving them to the left
+// if the start time is greater than 0, move the words to the left
+void FloatingWords::update(float deltaTime) {
+	if (startTime >= 0.0f) {
+		float elapsedTime = deltaTime - startTime;
+		for (size_t i = 0; i < words.size(); i++) {
+			if (spawnTimes[i] <= elapsedTime) {
+				words[i].move(-speed * deltaTime, 0);
+			}
+			else {
+				spawnTimes[i] -= deltaTime;
+			}
+		}
+	}
+}
+
+// Set the start time to the current time
+void FloatingWords::setStartTime(float time) {
+	startTime = time;
+}
+
+// Draw floating words on window if isVisible is true
+void FloatingWords::draw(sf::RenderWindow& window) const {
+	if (isVisible) {
+		for (const auto& word : words) {
+			window.draw(word);
+		}
+	}
+}
+
 // Game Class
 class Game {
 private :
@@ -189,6 +317,11 @@ private :
 	ScrollingBackground background;
 	ScrollingGround ground;
 	bool firstSpacePress;
+	const float frameRate = 60.0f;
+	StartScreen startScreen;
+	FloatingWords floatingWords;
+	float gameStartTime;
+	sf::Clock gameClock;
 
 public:
 	Game();
@@ -207,15 +340,26 @@ Game::Game()
 	bird("assets/bird.png", sf::Vector2f(200.0f, window.getSize().y / 2)), // setting bird file and position
 	background("assets/background.png", 150.0f), // setting backgound file and scroll speed
 	ground("assets/ground.png", 50.0f, window.getSize()),  // placing ground file
-	firstSpacePress(true) {} // setting first space press to true
+	startScreen(window.getSize()), // use window size to place start screen
+	floatingWords("assets/James Henry - Pigeons.txt", startScreen.font, 100.0f, 1.0f, window.getSize()), // setting floating words file, font, speed, interval and window size
+	firstSpacePress(true) // setting first space press to true
+	{}  
+
 
 // Game run function
 void Game::run() {
 	sf::Clock clock; // creating clock object to measure time
+	sf::Time accumulator = sf::Time::Zero; // setting time accumulator to zero
+	sf::Time deltaTime = sf::seconds(1.0f / frameRate); // setting time delta to 1/frameRate
 	while (window.isOpen()) {
 		processEvents(); // check for user input
-		sf::Time elapsed = clock.restart(); // get time elapsed since last restart
-		update(elapsed.asSeconds()); // update the game objects (bird and background)
+		accumulator += clock.restart(); // add time elapsed since last restart to accumulator
+		
+		while (accumulator >= deltaTime) {
+			update(deltaTime.asSeconds()); // update the game objects (bird and background)
+			accumulator -= deltaTime; // subtract delta time from accumulator
+		}
+		
 		render();
 	}
 }
@@ -228,10 +372,13 @@ void Game::processEvents() {
 			window.close();
 		}
 		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
-			if (firstSpacePress) {
+			if (startScreen.isVisible) {
+				startScreen.isVisible = false; // hide start screen
 				bird.update(firstSpacePress); // update bird position and enable gravity
 				firstSpacePress = false; // set first space press to false
-
+				floatingWords.isVisible = true; // show floating words
+				gameStartTime = gameClock.getElapsedTime().asSeconds(); // set game start time to current time
+				floatingWords.setStartTime(gameClock.getElapsedTime().asSeconds()); // set floating words start time to current time
 			}
 			bird.flap(); // flap bird when space key is pressed
 		}
@@ -243,6 +390,7 @@ void Game::update(float deltaTime) {
 	bird.update(!firstSpacePress); // update bird position
 	background.update(deltaTime); // update background position
 	ground.update(deltaTime); // update ground position
+	floatingWords.update(deltaTime); // update floating words position
 
 	sf::FloatRect birdBounds = bird.getBrounds();
 	if (birdBounds.top < 0) {
@@ -262,12 +410,15 @@ void Game::render() {
 	background.draw(window);
 	ground.draw(window);
 	bird.draw(window);
+	startScreen.draw(window);
+	floatingWords.draw(window);
 	window.display();
 
 }
 
 // Main function to run the game
 int main() {
+	std::srand(static_cast<unsigned int>(std::time(nullptr))); // setting random seed based on current time
 	Game game; // creating game object
 	game.run(); // running game
 	return 0;	
