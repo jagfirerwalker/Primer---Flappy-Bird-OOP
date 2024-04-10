@@ -50,9 +50,9 @@ void Bird::flap() {
 // Update bird position by applying gravity
 void Bird::update(bool gravityEnabled) {
 	if (gravityEnabled) {
-		velocity.y += gravity;
+		velocity.y += gravity * 60.0f; // Multiply gravity by the frame rate
 	}
-	sprite.move(velocity);
+	sprite.move(velocity * 60.0f);
 }
 
 // Draw bird on window
@@ -189,6 +189,7 @@ private :
 	ScrollingBackground background;
 	ScrollingGround ground;
 	bool firstSpacePress;
+	const float frameRate = 60.0f;
 
 public:
 	Game();
@@ -212,10 +213,17 @@ Game::Game()
 // Game run function
 void Game::run() {
 	sf::Clock clock; // creating clock object to measure time
+	sf::Time accumulator = sf::Time::Zero; // setting time accumulator to zero
+	sf::Time deltaTime = sf::seconds(1.0f / frameRate); // setting time delta to 1/frameRate
 	while (window.isOpen()) {
 		processEvents(); // check for user input
-		sf::Time elapsed = clock.restart(); // get time elapsed since last restart
-		update(elapsed.asSeconds()); // update the game objects (bird and background)
+		accumulator += clock.restart(); // add time elapsed since last restart to accumulator
+		
+		while (accumulator >= deltaTime) {
+			update(deltaTime.asSeconds()); // update the game objects (bird and background)
+			accumulator -= deltaTime; // subtract delta time from accumulator
+		}
+		
 		render();
 	}
 }
