@@ -10,7 +10,9 @@
 #include <iostream>
 #include <fstream>
 
-// Bird class
+
+// BIRD CLASS
+
 class Bird {
 private:
 	sf::Texture texture;
@@ -28,6 +30,7 @@ public:
 	void setPosition(const sf::Vector2f& position);
 	sf::Vector2f getVelocity() const;
 	void setVelocity(const sf::Vector2f& velocity);
+	sf::Vector2f getPosition() const;
 };
 
 // Bird class functions
@@ -41,6 +44,11 @@ Bird::Bird(const std::string& texturePath, const sf::Vector2f& position)
 	sprite.setPosition(position);
 	sprite.setScale(1.0f, 1.0f);
 
+}
+
+// get bird position
+sf::Vector2f Bird::getPosition() const {
+	return sprite.getPosition();
 }
 
 // Flap function to make bird jump
@@ -83,6 +91,8 @@ void Bird::setVelocity(const sf::Vector2f& velocity) {
 
 
 
+// SCROLLING GROUND CLASS
+
 // ScrollingBackground class
 class ScrollingBackground {
 private:
@@ -97,7 +107,6 @@ public:
 	void draw(sf::RenderWindow& window) const;
 };
 
-// ScrollingBackground class functions
 // Constructor setting background texture and scroll speed
 ScrollingBackground::ScrollingBackground(const std::string& texturePath, float scrollSpeed)
 	: scrollSpeed(scrollSpeed) {
@@ -183,6 +192,67 @@ void ScrollingGround::draw(sf::RenderWindow& window) const {
 	window.draw(sprite2);
 }
 
+
+// EXIT SCREEN CLASS
+
+class ExitScreen {
+private:
+	sf::RectangleShape backgroundBox;
+	sf::Text text_heading;
+	sf::Text text_body;
+
+public:
+	sf::Font font;
+	ExitScreen(const sf::Vector2u& windowSize);
+	void draw(sf::RenderWindow& window) const;
+	bool isVisible;
+};
+
+// ExitScreen font, background and text setup
+ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(false) {
+	// Load the font
+	if (!font.loadFromFile("assets/arial.ttf")) {
+		std::cout << "Error loading font" << std::endl;
+	}
+
+	// Set up the background box
+	backgroundBox.setSize(sf::Vector2f(400.0f, 100.0f));
+	backgroundBox.setFillColor(sf::Color::Black);
+	backgroundBox.setPosition(
+		(windowSize.x - backgroundBox.getGlobalBounds().width) / 2.0f, // center the box horizontally
+		(windowSize.y - backgroundBox.getGlobalBounds().height) / 2.0f // center the box vertically
+	);
+
+	text_heading.setFont(font);
+	text_heading.setString("Game Over!");
+	text_heading.setCharacterSize(40);
+	text_heading.setFillColor(sf::Color::White);
+	text_heading.setPosition(
+		(windowSize.x - text_heading.getGlobalBounds().width) / 2.0f, // center the text horizontally
+		(windowSize.y - text_heading.getGlobalBounds().height) / 2.0f - 20.0f // center the text vertically
+	);
+
+	text_body.setFont(font);
+	text_body.setString("Press 'Space' to Restart");
+	text_body.setCharacterSize(24);
+	text_body.setFillColor(sf::Color::White);
+	text_body.setPosition(
+		(windowSize.x - text_body.getGlobalBounds().width) / 2.0f, // center the text horizontally
+		(windowSize.y - text_body.getGlobalBounds().height) / 2.0f // center the text vertically
+	);
+
+}
+
+// Draw the ExitScreen when isVisible is true
+void ExitScreen::draw(sf::RenderWindow& window) const {
+	if (isVisible) {
+		window.draw(backgroundBox);
+		window.draw(text_heading);
+		window.draw(text_body);
+	}
+}
+
+
 // StartScreen class
 // Start screen to display before the game starts
 class StartScreen {
@@ -232,6 +302,8 @@ void StartScreen::draw(sf::RenderWindow& window) const {
 	}
 }
 
+// FLOATING WORDS CLASS FUNCTIONS
+
 // FloatingWords class
 // Class to display floating words on the screen
 class FloatingWords {
@@ -249,13 +321,17 @@ public:
 	void draw(sf::RenderWindow& window) const;
 	bool isVisible;
 	void setStartTime(float time); 
+  sf::FloatRect getBounds(size_t index) const; // Move this function inside the class	
+	std::vector<sf::Text> words;
+	std::vector<float> spawnTimes;
+
 };
 
 // Load words from file and set their position and speed
 // push_back words and spawn times to vectors
 FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, float speed, float spawnInterval, const sf::Vector2u& windowSize)
-	: font(font), speed(speed), isVisible(false), startTime(-1.0f) {
-	
+	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f) {
+
 	// Read the text from the file
 	std::ifstream file(filePath);
 	if (file.is_open()) {
@@ -279,6 +355,10 @@ FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, 
 	
 }
 
+// Get the bounds of the floating words
+sf::FloatRect FloatingWords::getBounds(size_t index) const {
+	return words[index].getGlobalBounds();
+}
 // Update floating words position by moving them to the left
 // if the start time is greater than 0, move the words to the left
 void FloatingWords::update(float deltaTime) {
@@ -309,6 +389,8 @@ void FloatingWords::draw(sf::RenderWindow& window) const {
 	}
 }
 
+// GAME SETUP 
+
 // Game Class
 class Game {
 private :
@@ -322,6 +404,8 @@ private :
 	FloatingWords floatingWords;
 	float gameStartTime;
 	sf::Clock gameClock;
+	ExitScreen exitScreen;
+
 
 public:
 	Game();
@@ -342,7 +426,9 @@ Game::Game()
 	ground("assets/ground.png", 50.0f, window.getSize()),  // placing ground file
 	startScreen(window.getSize()), // use window size to place start screen
 	floatingWords("assets/James Henry - Pigeons.txt", startScreen.font, 100.0f, 1.0f, window.getSize()), // setting floating words file, font, speed, interval and window size
-	firstSpacePress(true) // setting first space press to true
+	firstSpacePress(true), // setting first space press to true
+	gameStartTime(0.0f), // setting game start time to 0
+	exitScreen(window.getSize()) // setting exit screen to window size
 	{}  
 
 
@@ -385,14 +471,28 @@ void Game::processEvents() {
 	}
 }
 
-// Update game objects (bird and background)
+// Update game objects (bird, background, check for collision)
 void Game::update(float deltaTime) {
 	bird.update(!firstSpacePress); // update bird position
 	background.update(deltaTime); // update background position
 	ground.update(deltaTime); // update ground position
 	floatingWords.update(deltaTime); // update floating words position
 
+	// Check for collision between bird, window bounds and floating words
 	sf::FloatRect birdBounds = bird.getBrounds();
+
+	for (size_t i = 0; i < floatingWords.words.size(); i++) {
+		if (floatingWords.spawnTimes[i] <= gameClock.getElapsedTime().asSeconds() - gameStartTime) {
+			sf::FloatRect wordBounds = floatingWords.getBounds(i);
+			if (birdBounds.intersects(wordBounds)) {
+				bird.setPosition(sf::Vector2f(-100.0f, -100.0f)); // move bird off screen
+				floatingWords.isVisible = false; // hide floating words
+				exitScreen.isVisible = true; // show exit screen
+				break;
+			}
+		}
+	}
+
 	if (birdBounds.top < 0) {
 		bird.setPosition(sf::Vector2f(birdBounds.left, 0));
 		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.3f));
@@ -409,12 +509,18 @@ void Game::render() {
 	window.clear();
 	background.draw(window);
 	ground.draw(window);
-	bird.draw(window);
+	if (bird.getPosition().x >= 0 && bird.getPosition().y >= 0) {
+		bird.draw(window);
+	}
 	startScreen.draw(window);
+	exitScreen.draw(window);
 	floatingWords.draw(window);
 	window.display();
 
 }
+
+
+// MAIN FUNCTION
 
 // Main function to run the game
 int main() {
