@@ -11,6 +11,59 @@
 #include <fstream>
 
 
+// CLOUD CLASS
+class Cloud {
+private:
+	sf::Texture texture;
+	sf::Sprite sprite;
+	sf::Vector2f velocity;
+	float cloudFloatSpeed;
+	float respawnXPosition;
+
+public:
+	Cloud(const std::string& texturePath, float cloudFloatSpeed, float respawnXPosition);
+	void update(float deltaTime);
+	void draw(sf::RenderWindow& window) const;
+	bool isOffScreen() const;
+};
+
+// Cloud class functions
+// Constructore setting cloud texture and speed of cloud float
+Cloud::Cloud(const std::string& texturePath, float cloudFloatSpeed, float respawnXPosition)
+	: cloudFloatSpeed(cloudFloatSpeed), respawnXPosition(respawnXPosition) {
+	if (!texture.loadFromFile(texturePath)) {
+		std::cout << "Error loading cloud texture" << std::endl;
+	}
+	// Set the cloud sprite 
+	sprite.setTexture(texture);
+	sprite.setPosition(std::rand() % static_cast<int>(respawnXPosition), std::rand() % 500); // Set the cloud position to a random position on the y-axis
+
+}
+
+// Draw cloud on window, spawn multiple on screen and respawning it when it goes off the screen
+void Cloud::update(float deltaTime){
+	// Move the cloud to the left
+	sprite.move(-cloudFloatSpeed * deltaTime, 0); // Move the cloud to the left, based on the frame rate
+
+
+	// Respawn the cloud when it goes off the screen
+	if (isOffScreen()) { // Check if the cloud has gone off the screen
+		sprite.setPosition(respawnXPosition, std::rand() % 500); // Respawn the cloud to the right of the window
+	}
+}
+
+// Check if the cloud has gone off the screen
+void Cloud::draw(sf::RenderWindow& window) const {
+	window.draw(sprite);
+}
+
+// Check if the cloud has gone off the screen
+bool Cloud::isOffScreen() const {
+	return sprite.getPosition().x < -sprite.getTextureRect().width;
+}
+
+
+
 // BIRD CLASS
 
 class Bird {
@@ -405,6 +458,9 @@ private :
 	float gameStartTime;
 	sf::Clock gameClock;
 	ExitScreen exitScreen;
+	Score score;
+	sf::Texture cloudTexture;
+	std::vector<sf::Sprite> clouds;
 
 
 public:
@@ -415,22 +471,56 @@ private:
 	void processEvents();
 	void update(float deltaTime);
 	void render();
+	void restartGame();
+	void handleClouds(float deltaTime);
 };
 
 // Game class functions
 // Constructor setting window size and title, bird file and position, background file and scroll speed
 Game::Game()
-	: window(sf::VideoMode(1440, 1080), "Flappy Bird"), // setting window size and title
-	bird("assets/bird.png", sf::Vector2f(200.0f, window.getSize().y / 2)), // setting bird file and position
-	background("assets/background.png", 150.0f), // setting backgound file and scroll speed
-	ground("assets/ground.png", 50.0f, window.getSize()),  // placing ground file
-	startScreen(window.getSize()), // use window size to place start screen
-	floatingWords("assets/James Henry - Pigeons.txt", startScreen.font, 100.0f, 1.0f, window.getSize()), // setting floating words file, font, speed, interval and window size
-	firstSpacePress(true), // setting first space press to true
-	gameStartTime(0.0f), // setting game start time to 0
-	exitScreen(window.getSize()) // setting exit screen to window size
-	{}  
+	: window(sf::VideoMode(1440, 1080), "Flappy Bird") // setting window size and title
+	, bird("assets/bird.png", sf::Vector2f(200.0f, window.getSize().y / 2)) // setting bird file and position
+	, background("assets/background.png", 150.0f) // setting backgound file and scroll speed
+	, ground("assets/ground.png", 50.0f, window.getSize())  // placing ground file
+	, startScreen(window.getSize()) // use window size to place start screen
+	, floatingWords("assets/James Henry - Pigeons.txt", startScreen.font, 100.0f, 1.0f, window.getSize(), ground.getSize().y) // setting floating words file, font, speed, interval and window size
+	, firstSpacePress(true) // setting first space press to true
+	, gameStartTime(0.0f) // setting game start time to 0
+	, exitScreen(window.getSize()) // setting exit screen to window size
+	, score(startScreen.font, sf::Vector2f(10.0f, window.getSize().y - 40.0f)) // setting score font and position
+{
+}
 
+void Game::handleClouds(float deltaTime) {
+
+	static float cloudTimer = 0.0f;
+	cloudTimer += deltaTime;
+	
+	if (cloudTimer >= 10.0f) {  // spawn a cloud every 3 seconds
+		// Spawn a new cloud at random interval
+		cloudTimer = 0.0f; // reset the cloud timer
+		if (!cloudTexture.loadFromFile("assets/cloud.png")) {
+			std::cout << "Error loading cloud texture" << std::endl;
+		}
+
+		sf::Sprite cloudSprite(cloudTexture);
+		cloudSprite.setPosition(window.getSize().x, std::rand() % static_cast<int>(window.getSize().y - cloudSprite.getGlobalBounds().height));
+		clouds.push_back(cloudSprite);
+	}
+
+	// Move the clouds to the left
+	for (auto it = clouds.begin(); it != clouds.end();) { // iterate through the clouds
+		it->move(-50.0f * deltaTime, 0.0f); // move the cloud to the left
+
+		// Remove clouds that have gone off the screen
+		if (it->getPosition().x < -it -> getGlobalBounds().width) {
+			it = clouds.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
+}
 
 // Game run function
 void Game::run() {
@@ -440,14 +530,42 @@ void Game::run() {
 	while (window.isOpen()) {
 		processEvents(); // check for user input
 		accumulator += clock.restart(); // add time elapsed since last restart to accumulator
-		
-		while (accumulator >= deltaTime) {
+
+		while (accumulator >= deltaTime) { // 
 			update(deltaTime.asSeconds()); // update the game objects (bird and background)
 			accumulator -= deltaTime; // subtract delta time from accumulator
 		}
 		
 		render();
 	}
+}
+
+
+// Game restart function
+void Game::restartGame() {
+	// Reset the bird position and velocity
+	bird.setPosition(sf::Vector2f(200.0f, window.getSize().y / 2)); // set bird position
+	bird.setVelocity(sf::Vector2f(0.0f, 0.0f)); // set bird velocity	
+
+	// Reset the floating words
+	floatingWords.isVisible = false; // show floating words
+	float startSpawnTime = 0.5f; // set start spawn time to 0.5 seconds
+	for (size_t i = 0; i < floatingWords.words.size(); i++) {
+		float yPosition = std::rand() % static_cast<int>(floatingWords.floorPosition - floatingWords.skyPosition - floatingWords.words[i].getGlobalBounds().height) + floatingWords.skyPosition;
+		floatingWords.words[i].setPosition(window.getSize().x, yPosition);
+		floatingWords.spawnTimes[i] = i * floatingWords.spawnInterval;
+	}
+
+	exitScreen.isVisible = false; // hide exit screen
+
+	gameClock.restart(); // restart game clock
+
+	gameStartTime = 0.0f; // set game start time to 0
+	floatingWords.setStartTime(gameStartTime); // set floating words start time to 0
+
+	firstSpacePress = true; // set first space press to true
+
+	score.reset(); // reset the score
 }
 
 // Get user input events => close window or flap bird (space key)
@@ -477,6 +595,8 @@ void Game::update(float deltaTime) {
 	background.update(deltaTime); // update background position
 	ground.update(deltaTime); // update ground position
 	floatingWords.update(deltaTime); // update floating words position
+	handleClouds(deltaTime); // update clouds position	
+
 
 	// Check for collision between bird, window bounds and floating words
 	sf::FloatRect birdBounds = bird.getBrounds();
@@ -502,6 +622,9 @@ void Game::update(float deltaTime) {
 		bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.5f));
 	}
 
+
+	score.update(); // update the score text
+
 }
 
 // Render game objects (bird and background)
@@ -509,12 +632,19 @@ void Game::render() {
 	window.clear();
 	background.draw(window);
 	ground.draw(window);
+	for (const auto& cloud : clouds) {
+		window.draw(cloud);
+	}
 	if (bird.getPosition().x >= 0 && bird.getPosition().y >= 0) {
 		bird.draw(window);
 	}
 	startScreen.draw(window);
 	exitScreen.draw(window);
 	floatingWords.draw(window);
+	if (!startScreen.isVisible && !exitScreen.isVisible) {
+		score.draw(window);
+	}
+	
 	window.display();
 
 }
