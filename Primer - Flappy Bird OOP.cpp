@@ -36,6 +36,7 @@ Cloud::Cloud(const std::string& texturePath, float cloudFloatSpeed, float respaw
 	}
 	// Set the cloud sprite 
 	sprite.setTexture(texture);
+	sprite.setScale(0.5f, 0.5f); // Set the cloud scale to 0.5 on the x and y axis
 	sprite.setPosition(std::rand() % static_cast<int>(respawnXPosition), std::rand() % 500); // Set the cloud position to a random position on the y-axis
 
 }
@@ -327,6 +328,7 @@ void ExitScreen::draw(sf::RenderWindow& window) const {
 
 
 
+
 // StartScreen class
 // Start screen to display before the game starts
 class StartScreen {
@@ -404,7 +406,7 @@ public:
 // Load words from file and set their position and speed
 // push_back words and spawn times to vectors
 FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, float speed, float spawnInterval, const sf::Vector2u& windowSize, float groundHeight)
-	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f), floorPosition(windowSize.y + groundHeight + 40.0f), skyPosition(1.0f) {
+	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f), floorPosition(windowSize.y + groundHeight + 60.0f), skyPosition(1.0f) {
 
 	// Read the text from the file
 	std::ifstream file(filePath);
@@ -418,7 +420,7 @@ FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, 
 			text.setString(word);
 			text.setCharacterSize(24);
 			text.setFillColor(sf::Color::White);
-			float yPosition = std::rand() % static_cast<int>(floorPosition - skyPosition - text.getGlobalBounds().height) + skyPosition;
+			float yPosition = std::rand() % static_cast<int>(floorPosition - skyPosition - text.getGlobalBounds().height) + skyPosition; // Set the y position of the word to a random position between the sky and the floor
 			text.setPosition(windowSize.x, yPosition);
 			words.push_back(text);
 			spawnTimes.push_back(currentTime);
@@ -469,28 +471,36 @@ void FloatingWords::draw(sf::RenderWindow& window) const {
 class Score {
 private:
 	int value;
-	sf::Text text;
+	int multiplier;
+	sf::Text scoreText;
+	sf::Text multiplierText;
 
 public:
 	Score(const sf::Font& font, const sf::Vector2f& position);
-	void increment();
+	void increment(int amount);
 	void decrement(int amount);
 	void reset();
 	void update();
 	void draw(sf::RenderWindow& window) const;
 	int getValue() const;
+	void incrementMultiplier();
+	void resetMultiplier();
 };
 
 Score::Score(const sf::Font& font, const sf::Vector2f& position)
-	: value(0) {
-	text.setFont(font);
-	text.setCharacterSize(24);
-	text.setFillColor(sf::Color::White);
-	text.setPosition(position);
+	: value(0), multiplier(1) {
+	scoreText.setFont(font);
+	scoreText.setCharacterSize(24);
+	scoreText.setFillColor(sf::Color::White);
+	scoreText.setPosition(position);
+
+	multiplierText.setFont(font);
+	multiplierText.setCharacterSize(24);
+	multiplierText.setFillColor(sf::Color::White);
 }
 
-void Score::increment() {
-	value++;
+void Score::increment(int amount) {
+	value += amount * multiplier;
 }
 
 void Score::decrement(int amount) {
@@ -499,19 +509,36 @@ void Score::decrement(int amount) {
 
 void Score::reset() {
 	value = 0;
+	multiplier = 1;
 }
 
 void Score::update() {
-	text.setString("Score: " + std::to_string(value));
+	scoreText.setString("Score: " + std::to_string(value));
+	multiplierText.setString(" X " + std::to_string(multiplier));
+	sf::FloatRect scoreBounds = scoreText.getGlobalBounds();
+	multiplierText.setPosition(scoreBounds.left + scoreBounds.width + 10.0f, scoreText.getPosition().y);
 }
 
 void Score::draw(sf::RenderWindow& window) const {
-	window.draw(text);
+	window.draw(scoreText);
+	window.draw(multiplierText);
 }
 
 int Score::getValue() const {
 	return value;
 }
+
+void Score::incrementMultiplier() {
+	multiplier++;
+}
+
+void Score::resetMultiplier() {
+	multiplier = 1;
+}
+
+
+
+
 
 // GAME SETUP 
 
@@ -533,7 +560,6 @@ private:
 	sf::Texture cloudTexture;
 	std::vector<sf::Sprite> clouds;
 
-
 public:
 	Game();
 	void run();
@@ -544,6 +570,7 @@ private:
 	void render();
 	void restartGame();
 	void handleClouds(float deltaTime);
+	bool checkBirdWordCollision(const sf::FloatRect& birdBounds, const sf::FloatRect& wordBounds);
 };
 
 // Game class functions
@@ -567,6 +594,8 @@ void Game::handleClouds(float deltaTime) {
 
 	static float cloudTimer = 0.0f;
 	cloudTimer += deltaTime;
+
+	const int cloudSpeed = 200.0f; // set cloud speed
 	
 	if (cloudTimer >= 10.0f) {  // spawn a cloud every 3 seconds
 		// Spawn a new cloud at random interval
@@ -582,7 +611,7 @@ void Game::handleClouds(float deltaTime) {
 
 	// Move the clouds to the left
 	for (auto it = clouds.begin(); it != clouds.end();) { // iterate through the clouds
-		it->move(-50.0f * deltaTime, 0.0f); // move the cloud to the left
+		it->move(-cloudSpeed * deltaTime, 0.0f); // move the cloud to the left with cloudSpeed
 
 		// Remove clouds that have gone off the screen
 		if (it->getPosition().x < -it -> getGlobalBounds().width) {
@@ -603,7 +632,6 @@ void Game::run() {
 		processEvents(); // check for user input
 		accumulator += clock.restart(); // add time elapsed since last restart to accumulator
 
-
 		while (accumulator >= deltaTime) { // 
 			update(deltaTime.asSeconds()); // update the game objects (bird and background)
 			accumulator -= deltaTime; // subtract delta time from accumulator
@@ -618,6 +646,11 @@ void Game::restartGame() {
 	// Reset the bird position and velocity
 	bird.setPosition(sf::Vector2f(200.0f, window.getSize().y / 2)); // set bird position
 	bird.setVelocity(sf::Vector2f(0.0f, 0.0f)); // set bird velocity	
+
+
+	// Reset the multiplier
+	score.reset();
+
 
 	// Reset the floating words
 	floatingWords.isVisible = false; // show floating words
@@ -670,6 +703,10 @@ void Game::processEvents() {
 	}
 }
 
+bool Game::checkBirdWordCollision(const sf::FloatRect& birdBounds, const sf::FloatRect& wordBounds) {
+	return birdBounds.intersects(wordBounds);
+}
+
 // Update game objects (bird, background, check for collision)
 void Game::update(float deltaTime) {
 	bird.update(!firstSpacePress); // update bird position
@@ -678,35 +715,43 @@ void Game::update(float deltaTime) {
 	floatingWords.update(deltaTime); // update floating words position
 	handleClouds(deltaTime); // update clouds position	
 
-
 	// Check for collision between bird, window bounds and floating words
 	sf::FloatRect birdBounds = bird.getBrounds();
 
 	// Check for collision between bird and window bounds
-	for (size_t i = 0; i < floatingWords.words.size(); i++) { //check each word
-		if (floatingWords.spawnTimes[i] <= gameClock.getElapsedTime().asSeconds() - gameStartTime) { // check if the word has spawned
-			sf::FloatRect wordBounds = floatingWords.getBounds(i); // get the bounds of the word
-			if (birdBounds.intersects(wordBounds)) { // check for collision between bird and word
-				bird.setPosition(sf::Vector2f(-100.0f, -100.0f)); // move bird off screen
-				floatingWords.isVisible = false; // hide floating words
-				exitScreen.isVisible = true; // show exit screen
-				exitScreen.setScore(score.getValue()); // set the score on the exit screen
-				break;
+	for (size_t i = 0; i < floatingWords.words.size(); i++) {
+		if (floatingWords.spawnTimes[i] <= gameClock.getElapsedTime().asSeconds() - gameStartTime) {
+			sf::FloatRect wordBounds = floatingWords.getBounds(i);
+			if (checkBirdWordCollision(birdBounds, wordBounds)) { // check for collision between bird and word
+				score.increment(10); // Increase the score by 10 points
+				score.incrementMultiplier(); // Increase the multiplier
+				floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
+				floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
+				i--; // decrement i
 			}
+			else if (wordBounds.left + wordBounds.width < birdBounds.left) { // check if the word has gone off the screen
+				score.resetMultiplier(); // reset the multiplier
+				floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
+				floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
+				i--; // decrement i
+			}
+				//DEAD CODE
+				//floatingWords.isVisible = false; // hide floating words
+				//exitScreen.isVisible = true; // show exit screen
+				//exitScreen.setScore(score.getValue()); // set the score on the exit screen
 		}
 	}
 	if (!exitScreen.isVisible) {
-		score.increment(); // Increase the score based on the seconds survived
 
 		if (birdBounds.top < 0.0f) {
 			bird.setPosition(sf::Vector2f(birdBounds.left, 0.0f));
 			bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.3f));
-			score.decrement(10); // Decrease the score by 10 points if the bird hits the top of the window
+			score.decrement(1); // Decrease the score by 10 points if the bird hits the top of the window
 		}
 		else if (birdBounds.top + birdBounds.height > window.getSize().y - ground.getSize().y) { // check for collision between bird and ground
 			bird.setPosition(sf::Vector2f(birdBounds.left, window.getSize().y - ground.getSize().y - birdBounds.height)); // set bird position to the top of the ground
 			bird.setVelocity(sf::Vector2f(bird.getVelocity().x, -bird.getVelocity().y * 0.5f)); // set bird velocity
-			score.decrement(10); // Decrease the score by 10 points if the bird hits the ground
+			score.decrement(1); // Decrease the score by 10 points if the bird hits the ground
 		}
 	}
 
