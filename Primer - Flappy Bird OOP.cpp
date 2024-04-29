@@ -574,6 +574,8 @@ private:
 	sf::Font font;
 	float speed;
 	float startTime;
+	std::string filePath;
+	sf::Vector2u windowSize;
 
 
 public:
@@ -588,35 +590,14 @@ public:
 	float spawnInterval;
 	float floorPosition;
 	float skyPosition;
+	void reset();
 };
 
 // Load words from file and set their position and speed
 // push_back words and spawn times to vectors
 FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, float speed, float spawnInterval, const sf::Vector2u& windowSize, float groundHeight)
-	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f), floorPosition(windowSize.y + groundHeight + 60.0f), skyPosition(1.0f) {
-
-	// Read the text from the file
-	std::ifstream file(filePath);
-	if (file.is_open()) {
-		std::string word;
-		float currentTime = 0.0f; // Set the current time to 0
-
-		while (file >> word) { // Read each word from the file
-			sf::Text text;
-			text.setFont(font);
-			text.setString(word);
-			text.setCharacterSize(24);
-			text.setFillColor(sf::Color::White);
-			float yPosition = std::rand() % static_cast<int>(floorPosition - skyPosition - text.getGlobalBounds().height) + skyPosition; // Set the y position of the word to a random position between the sky and the floor
-			text.setPosition(windowSize.x, yPosition);
-			words.push_back(text);
-			spawnTimes.push_back(currentTime);
-			currentTime += spawnInterval;
-		}
-		file.close();
-
-	}
-
+	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f), floorPosition(windowSize.y + groundHeight + 60.0f), skyPosition(1.0f), filePath(filePath), windowSize(windowSize) {
+	reset();
 }
 
 // Get the bounds of the floating words
@@ -650,6 +631,33 @@ void FloatingWords::draw(sf::RenderWindow& window) const {
 		for (const auto& word : words) {
 			window.draw(word);
 		}
+	}
+}
+
+// Reset floating words
+void FloatingWords::reset() {
+	words.clear();
+	spawnTimes.clear();
+
+	std::ifstream file(filePath);
+	if (file.is_open()) {
+		std::string word;
+		float currentTime = 0.0f; // Set the current time to 0
+
+		while (file >> word) { // Read each word from the file
+			sf::Text text;
+			text.setFont(font);
+			text.setString(word);
+			text.setCharacterSize(24);
+			text.setFillColor(sf::Color::White);
+			float yPosition = std::rand() % static_cast<int>(floorPosition - skyPosition - text.getGlobalBounds().height) + skyPosition; // Set the y position of the word to a random position between the sky and the floor
+			text.setPosition(windowSize.x, yPosition);
+			words.push_back(text);
+			spawnTimes.push_back(currentTime);
+			currentTime += spawnInterval;
+		}
+		file.close();
+
 	}
 }
 
@@ -857,7 +865,7 @@ void Game::restartGame() {
 
 
 	// Reset the floating words
-	floatingWords.isVisible = true; // show floating words
+	floatingWords.reset(); // reset floating words
 	float startSpawnTime = 0.5f; // set start spawn time to 0.5 seconds
 	for (size_t i = 0; i < floatingWords.words.size(); i++) {
 		float yPosition = std::rand() % static_cast<int>(floatingWords.floorPosition - floatingWords.skyPosition - floatingWords.words[i].getGlobalBounds().height) + floatingWords.skyPosition;
@@ -866,6 +874,7 @@ void Game::restartGame() {
 	}
 
 	floatingWords.setStartTime(gameStartTime); // set floating words start time to 0
+	floatingWords.isVisible = true; // show floating words
 	score.reset(); // reset the score
 }
 
