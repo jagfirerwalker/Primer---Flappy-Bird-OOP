@@ -357,6 +357,7 @@ private:
 	sf::Text text;
 	sf::Text nameText;
 	std::string playerName;
+	sf::Vector2u windowSize;
 
 public:
 	sf::Font font;
@@ -368,14 +369,16 @@ public:
 };
 
 SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
-	: isVisible(false), playerName("") {
+	: isVisible(false), playerName(""), windowSize(windowSize) {
+
 	// Load the font
 	if (!font.loadFromFile("assets/arial.ttf")) {
 		std::cout << "Error loading font" << std::endl;
 	}
 
 	// Set the background box
-	backgroundBox.setSize(sf::Vector2f(400.0f, 400.0f));
+	backgroundBox.setSize(sf::Vector2f(400.0f, 200.0f));
+
 	backgroundBox.setFillColor(sf::Color::Black);
 	backgroundBox.setPosition(
 		(windowSize.x - backgroundBox.getSize().x) / 2.0f,
@@ -384,13 +387,16 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 
 	// Set up the text
 	text.setFont(font);
-	text.setString("Enter our name: (3 letters): ");
+	text.setString("Enter your name (3 letters):");
+
 	text.setCharacterSize(24);
 	text.setFillColor(sf::Color::White);
 	text.setPosition(
 		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
 		(windowSize.y - text.getGlobalBounds().height) / 2.0f - 50.0f
-	); // center the text
+
+	); // center the text above the input
+
 
 	// Set up the name text
 	nameText.setFont(font);
@@ -401,6 +407,7 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 		(windowSize.y - nameText.getGlobalBounds().height) / 2.0f
 	); // center the text
 }
+
 
 // Draw SaveScoreScreen when isVisible is true
 void SaveScoreScreen::draw(sf::RenderWindow& window) {
@@ -420,6 +427,11 @@ void SaveScoreScreen::handleInput(sf::Event& event) {
 			playerName += static_cast<char>(event.text.unicode);
 		}
 		nameText.setString(playerName);
+		nameText.setPosition(
+			(windowSize.x - nameText.getGlobalBounds().width) / 2.0f,
+			(windowSize.y - nameText.getGlobalBounds().height) / 2.0f
+		); // center the text
+
 	}
 }
 
@@ -797,7 +809,7 @@ void Game::handleClouds(float deltaTime) {
 
 	const int cloudSpeed = 200.0f; // set cloud speed
 
-	if (cloudTimer >= 10.0f) {  // spawn a cloud every 3 seconds
+	if (cloudTimer >= 10.0f) {  // spawn a cloud every 10 seconds
 		// Spawn a new cloud at random interval
 		cloudTimer = 0.0f; // reset the cloud timer
 		if (!cloudTexture.loadFromFile("assets/cloud.png")) {
@@ -898,20 +910,35 @@ void Game::processEvents() {
 				bird.flap(); // flap bird when space key is pressed
 			}
 		}
-		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S) {
-			saveScoreScreen.isVisible = true;
+
+		else if (saveScoreScreen.isVisible) {
+			if (event.type == sf::Event::TextEntered) {
+				saveScoreScreen.handleInput(event);
+			}
+		}
+		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S ) {
+			if (exitScreen.isVisible && saveScoreScreen.isVisible == false) {
+				saveScoreScreen.isVisible = true;
+				exitScreen.isVisible = false;
+			}
 		}
 		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
 			if (exitScreen.isVisible) {
 				restartGame();
 			}
 			else if (saveScoreScreen.isVisible) {
-				scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
-				scoreBoard.saveScores();
-				restartGame();
+				std::string playerName = saveScoreScreen.getPlayerName();
+				std::cout << "Player Name: " << playerName << std::endl;
+
+				if (playerName.size() == 3) {
+					scoreBoard.loadScores();
+					scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
+					scoreBoard.saveScores();
+					restartGame();
+				}
 			}
 		}
-		saveScoreScreen.handleInput(event);
+
 	}
 }
 
@@ -956,10 +983,6 @@ void Game::update(float deltaTime) {
 					break;
 				}
 			}
-			//DEAD CODE
-			//floatingWords.isVisible = false; // hide floating words
-			//exitScreen.isVisible = true; // show exit screen
-			//exitScreen.setScore(score.getValue()); // set the score on the exit screen
 		}
 	}
 	if (!exitScreen.isVisible) {
