@@ -253,6 +253,184 @@ void ScrollingGround::draw(sf::RenderWindow& window) const {
 }
 
 
+// SCORE BOARD FUNCTION
+
+// ScoreBoard class
+
+class ScoreBoard {
+private:
+	sf::RectangleShape backgroundBox;
+	sf::Text text;
+	std::vector<std::pair<std::string, int>> scores;
+	const std::string filename = "scoreboard.txt";
+
+public:
+	sf::Font font;
+	ScoreBoard(const sf::Vector2u& windowSize);
+	void addScore(const std::string& name, int score);
+	void saveScores();
+	void loadScores();
+	void draw(sf::RenderWindow& window);
+
+};
+
+ScoreBoard::ScoreBoard(const sf::Vector2u& windowSize) {
+
+	// Load the font
+	if (!font.loadFromFile("assets/arial.ttf")) {
+		std::cout << "Error loading font" << std::endl;
+	}
+
+	// Set the background box
+	backgroundBox.setSize(sf::Vector2f(400.0f, 400.0f));
+	backgroundBox.setFillColor(sf::Color::Black);
+	backgroundBox.setPosition(
+		(windowSize.x - backgroundBox.getSize().x) / 2.0f,
+		(windowSize.y - backgroundBox.getSize().y) / 2.0f
+	); // center the box
+
+	// Set the text
+	text.setFont(font);
+	text.setCharacterSize(24);
+	text.setFillColor(sf::Color::White);
+
+	loadScores();
+}
+
+void ScoreBoard::loadScores() {
+	std::ifstream file(filename);
+	if (file.is_open()) {
+		scores.clear();
+		std::string name;
+		int score;
+		while (file >> name >> score) {
+			scores.push_back(std::make_pair(name, score));
+		}
+		file.close();
+	}
+}
+
+void ScoreBoard::addScore(const std::string& name, int score) {
+	scores.push_back(std::make_pair(name, score));
+	std::sort(scores.begin(), scores.end(), [](const auto& a, const auto& b) {
+		return a.second > b.second; // a.second is the score in the pair
+		}); // sort the scores in descending order
+	if (scores.size() > 10) {
+		scores.resize(10); // keep only the top 10 scores
+	}
+}
+
+void ScoreBoard::saveScores() {
+	std::ofstream file(filename);
+	if (file.is_open()) {
+		for (const auto& score : scores) {
+			file << score.first << " " << score.second << std::endl;
+		}
+		file.close();
+	}
+}
+
+void ScoreBoard::draw(sf::RenderWindow& window) {
+	window.draw(backgroundBox);
+	window.draw(text);
+
+	std::stringstream ss;
+
+	ss << "Scoreboard" << std::endl;
+	for (const auto& score : scores) {
+		ss << score.first << " " << score.second << std::endl;
+	}
+
+	text.setString(ss.str());
+	text.setPosition(
+		(window.getSize().x - text.getGlobalBounds().width) / 2.0f,
+		(window.getSize().y - text.getGlobalBounds().height) / 2.0f
+	);
+	window.draw(text);
+}
+
+// Save ScoreBoard function
+class SaveScoreScreen {
+private:
+	sf::RectangleShape backgroundBox;
+	sf::Text text;
+	sf::Text nameText;
+	std::string playerName;
+	sf::Vector2u windowSize;
+
+public:
+	sf::Font font;
+	SaveScoreScreen(const sf::Vector2u& windowSize);
+	void draw(sf::RenderWindow& window);
+	void handleInput(sf::Event& event);
+	bool isVisible;
+	std::string getPlayerName() const;
+};
+
+SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
+	: isVisible(false), playerName(""), windowSize(windowSize) {
+	// Load the font
+	if (!font.loadFromFile("assets/arial.ttf")) {
+		std::cout << "Error loading font" << std::endl;
+	}
+
+	// Set the background box
+	backgroundBox.setSize(sf::Vector2f(400.0f, 200.0f));
+	backgroundBox.setFillColor(sf::Color::Black);
+	backgroundBox.setPosition(
+		(windowSize.x - backgroundBox.getSize().x) / 2.0f,
+		(windowSize.y - backgroundBox.getSize().y) / 2.0f
+	); // center the box
+
+	// Set up the text
+	text.setFont(font);
+	text.setString("Enter your name (3 letters):");
+	text.setCharacterSize(24);
+	text.setFillColor(sf::Color::White);
+	text.setPosition(
+		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
+		(windowSize.y - text.getGlobalBounds().height) / 2.0f - 50.0f
+	); // center the text above the input
+
+	// Set up the name text
+	nameText.setFont(font);
+	nameText.setCharacterSize(24);
+	nameText.setFillColor(sf::Color::White);
+	nameText.setPosition(
+		(windowSize.x - nameText.getGlobalBounds().width) / 2.0f,
+		(windowSize.y - nameText.getGlobalBounds().height) / 2.0f
+	); // center the text
+}
+
+void SaveScoreScreen::draw(sf::RenderWindow& window) {
+	if (isVisible) {
+		window.draw(backgroundBox);
+		window.draw(text);
+		window.draw(nameText);
+	}
+}
+
+void SaveScoreScreen::handleInput(sf::Event& event) {
+	if (event.type == sf::Event::TextEntered) {
+		char enteredChar = static_cast<char>(event.text.unicode);
+		std::cout << "Entered Char: " << enteredChar << std::endl;
+
+		if (event.text.unicode == '\b' && playerName.size() > 0) {
+			playerName.pop_back();
+		}
+		else if (playerName.size() < 3 && std::isalpha(event.text.unicode)) {
+			playerName += static_cast<char>(event.text.unicode);
+		}
+		nameText.setString(playerName);
+		nameText.setPosition(
+			(windowSize.x - nameText.getGlobalBounds().width) / 2.0f,
+			(windowSize.y - nameText.getGlobalBounds().height) / 2.0f
+		); // center the text
+
+		std::cout << "Updated Player Name: " << playerName << std::endl;
+	}
+}
+
 // EXIT SCREEN CLASS
 
 class ExitScreen {
@@ -596,8 +774,8 @@ void Game::handleClouds(float deltaTime) {
 	cloudTimer += deltaTime;
 
 	const int cloudSpeed = 200.0f; // set cloud speed
-	
-	if (cloudTimer >= 10.0f) {  // spawn a cloud every 3 seconds
+
+	if (cloudTimer >= 10.0f) {  // spawn a cloud every 10 seconds
 		// Spawn a new cloud at random interval
 		cloudTimer = 0.0f; // reset the cloud timer
 		if (!cloudTexture.loadFromFile("assets/cloud.png")) {
@@ -700,6 +878,33 @@ void Game::processEvents() {
 				bird.flap(); // flap bird when space key is pressed
 			}
 		}
+		else if (saveScoreScreen.isVisible) {
+			if (event.type == sf::Event::TextEntered) {
+				saveScoreScreen.handleInput(event);
+			}
+		}
+		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S ) {
+			if (exitScreen.isVisible && saveScoreScreen.isVisible == false) {
+				saveScoreScreen.isVisible = true;
+				exitScreen.isVisible = false;
+			}
+		}
+		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
+			if (exitScreen.isVisible) {
+				restartGame();
+			}
+			else if (saveScoreScreen.isVisible) {
+				std::string playerName = saveScoreScreen.getPlayerName();
+				std::cout << "Player Name: " << playerName << std::endl;
+
+				if (playerName.size() == 3) {
+					scoreBoard.loadScores();
+					scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
+					scoreBoard.saveScores();
+					restartGame();
+				}
+			}
+		}
 	}
 }
 
@@ -735,10 +940,6 @@ void Game::update(float deltaTime) {
 				floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
 				i--; // decrement i
 			}
-				//DEAD CODE
-				//floatingWords.isVisible = false; // hide floating words
-				//exitScreen.isVisible = true; // show exit screen
-				//exitScreen.setScore(score.getValue()); // set the score on the exit screen
 		}
 	}
 	if (!exitScreen.isVisible) {
