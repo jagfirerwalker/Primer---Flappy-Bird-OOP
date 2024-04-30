@@ -9,6 +9,7 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 
 
 // CLOUD CLASS
@@ -42,7 +43,7 @@ Cloud::Cloud(const std::string& texturePath, float cloudFloatSpeed, float respaw
 }
 
 // Draw cloud on window, spawn multiple on screen and respawning it when it goes off the screen
-void Cloud::update(float deltaTime){
+void Cloud::update(float deltaTime) {
 	// Move the cloud to the left
 	sprite.move(-cloudFloatSpeed * deltaTime, 0); // Move the cloud to the left, based on the frame rate
 
@@ -369,6 +370,7 @@ public:
 
 SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 	: isVisible(false), playerName(""), windowSize(windowSize) {
+
 	// Load the font
 	if (!font.loadFromFile("assets/arial.ttf")) {
 		std::cout << "Error loading font" << std::endl;
@@ -376,6 +378,7 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 
 	// Set the background box
 	backgroundBox.setSize(sf::Vector2f(400.0f, 200.0f));
+
 	backgroundBox.setFillColor(sf::Color::Black);
 	backgroundBox.setPosition(
 		(windowSize.x - backgroundBox.getSize().x) / 2.0f,
@@ -385,12 +388,15 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 	// Set up the text
 	text.setFont(font);
 	text.setString("Enter your name (3 letters):");
+
 	text.setCharacterSize(24);
 	text.setFillColor(sf::Color::White);
 	text.setPosition(
 		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
 		(windowSize.y - text.getGlobalBounds().height) / 2.0f - 50.0f
+
 	); // center the text above the input
+
 
 	// Set up the name text
 	nameText.setFont(font);
@@ -402,6 +408,8 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 	); // center the text
 }
 
+
+// Draw SaveScoreScreen when isVisible is true
 void SaveScoreScreen::draw(sf::RenderWindow& window) {
 	if (isVisible) {
 		window.draw(backgroundBox);
@@ -412,9 +420,6 @@ void SaveScoreScreen::draw(sf::RenderWindow& window) {
 
 void SaveScoreScreen::handleInput(sf::Event& event) {
 	if (event.type == sf::Event::TextEntered) {
-		char enteredChar = static_cast<char>(event.text.unicode);
-		std::cout << "Entered Char: " << enteredChar << std::endl;
-
 		if (event.text.unicode == '\b' && playerName.size() > 0) {
 			playerName.pop_back();
 		}
@@ -427,8 +432,11 @@ void SaveScoreScreen::handleInput(sf::Event& event) {
 			(windowSize.y - nameText.getGlobalBounds().height) / 2.0f
 		); // center the text
 
-		std::cout << "Updated Player Name: " << playerName << std::endl;
 	}
+}
+
+std::string SaveScoreScreen::getPlayerName() const {
+	return playerName;
 }
 
 // EXIT SCREEN CLASS
@@ -439,6 +447,8 @@ private:
 	sf::Text text_heading;
 	sf::Text text_body;
 	sf::Text scoreText;
+	sf::Text saveScoreText;
+	bool saveScoreSelected;
 
 public:
 	sf::Font font;
@@ -473,12 +483,21 @@ ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(false) {
 	);
 
 	text_body.setFont(font);
-	text_body.setString("Press 'Space' to Restart");
+	text_body.setString("Press 'Enter' to Restart");
 	text_body.setCharacterSize(24);
 	text_body.setFillColor(sf::Color::White);
 	text_body.setPosition(
 		(windowSize.x - text_body.getGlobalBounds().width) / 2.0f, // center the text horizontally
 		(windowSize.y - text_body.getGlobalBounds().height) / 2.0f + 20.0f // center the text vertically
+	);
+
+	saveScoreText.setFont(font);
+	saveScoreText.setString("Press 'S' for Scoreboard");
+	saveScoreText.setCharacterSize(24);
+	saveScoreText.setFillColor(sf::Color::White);
+	saveScoreText.setPosition(
+		(windowSize.x - saveScoreText.getGlobalBounds().width) / 2.0f, // center the text horizontally
+		(windowSize.y - saveScoreText.getGlobalBounds().height) / 2.0f + 60.0f // center the text vertically
 	);
 
 }
@@ -501,9 +520,9 @@ void ExitScreen::draw(sf::RenderWindow& window) const {
 		window.draw(text_heading);
 		window.draw(text_body);
 		window.draw(scoreText);
+		window.draw(saveScoreText);
 	}
 }
-
 
 
 
@@ -556,6 +575,8 @@ void StartScreen::draw(sf::RenderWindow& window) const {
 	}
 }
 
+
+
 // FLOATING WORDS CLASS FUNCTIONS
 
 // FloatingWords class
@@ -565,6 +586,8 @@ private:
 	sf::Font font;
 	float speed;
 	float startTime;
+	std::string filePath;
+	sf::Vector2u windowSize;
 
 
 public:
@@ -579,35 +602,14 @@ public:
 	float spawnInterval;
 	float floorPosition;
 	float skyPosition;
+	void reset();
 };
 
 // Load words from file and set their position and speed
 // push_back words and spawn times to vectors
 FloatingWords::FloatingWords(const std::string& filePath, const sf::Font& font, float speed, float spawnInterval, const sf::Vector2u& windowSize, float groundHeight)
-	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f), floorPosition(windowSize.y + groundHeight + 60.0f), skyPosition(1.0f) {
-
-	// Read the text from the file
-	std::ifstream file(filePath);
-	if (file.is_open()) {
-		std::string word;
-		float currentTime = 0.0f; // Set the current time to 0
-
-		while (file >> word) { // Read each word from the file
-			sf::Text text;
-			text.setFont(font);
-			text.setString(word);
-			text.setCharacterSize(24);
-			text.setFillColor(sf::Color::White);
-			float yPosition = std::rand() % static_cast<int>(floorPosition - skyPosition - text.getGlobalBounds().height) + skyPosition; // Set the y position of the word to a random position between the sky and the floor
-			text.setPosition(windowSize.x, yPosition);
-			words.push_back(text);
-			spawnTimes.push_back(currentTime);
-			currentTime += spawnInterval;
-		}
-		file.close();
-
-	}
-
+	: font(font), speed(speed), spawnInterval(spawnInterval), isVisible(false), startTime(-1.0f), floorPosition(windowSize.y + groundHeight + 60.0f), skyPosition(1.0f), filePath(filePath), windowSize(windowSize) {
+	reset();
 }
 
 // Get the bounds of the floating words
@@ -641,6 +643,33 @@ void FloatingWords::draw(sf::RenderWindow& window) const {
 		for (const auto& word : words) {
 			window.draw(word);
 		}
+	}
+}
+
+// Reset floating words
+void FloatingWords::reset() {
+	words.clear();
+	spawnTimes.clear();
+
+	std::ifstream file(filePath);
+	if (file.is_open()) {
+		std::string word;
+		float currentTime = 0.0f; // Set the current time to 0
+
+		while (file >> word) { // Read each word from the file
+			sf::Text text;
+			text.setFont(font);
+			text.setString(word);
+			text.setCharacterSize(24);
+			text.setFillColor(sf::Color::White);
+			float yPosition = std::rand() % static_cast<int>(floorPosition - skyPosition - text.getGlobalBounds().height) + skyPosition; // Set the y position of the word to a random position between the sky and the floor
+			text.setPosition(windowSize.x, yPosition);
+			words.push_back(text);
+			spawnTimes.push_back(currentTime);
+			currentTime += spawnInterval;
+		}
+		file.close();
+
 	}
 }
 
@@ -735,8 +764,11 @@ private:
 	sf::Clock gameClock;
 	ExitScreen exitScreen;
 	Score score;
+	ScoreBoard scoreBoard;
+	SaveScoreScreen saveScoreScreen;
 	sf::Texture cloudTexture;
 	std::vector<sf::Sprite> clouds;
+	int consecutiveMissedWords;
 
 public:
 	Game();
@@ -754,16 +786,18 @@ private:
 // Game class functions
 // Constructor setting window size and title, bird file and position, background file and scroll speed
 Game::Game()
-	: window(sf::VideoMode(1440, 1080), "Flappy Bird") // setting window size and title
+	: window(sf::VideoMode(1440, 1080), "By what mistake were pigeons made so happy") // setting window size and title
 	, bird("assets/bird.png", sf::Vector2f(200.0f, window.getSize().y / 2)) // setting bird file and position
 	, background("assets/background.png", 150.0f) // setting backgound file and scroll speed
 	, ground("assets/ground.png", 50.0f, window.getSize())  // placing ground file
 	, startScreen(window.getSize()) // use window size to place start screen
-	, floatingWords("assets/James Henry - Pigeons.txt", startScreen.font, 100.0f, 1.0f, window.getSize(), ground.getSize().y) // setting floating words file, font, speed, interval and window size
+	, floatingWords("assets/James Henry - Pigeons.txt", startScreen.font, 300.0f, 0.5f, window.getSize(), ground.getSize().y) // setting floating words file, font, speed, interval and window size
 	, firstSpacePress(true) // setting first space press to true
 	, gameStartTime(0.0f) // setting game start time to 0
 	, exitScreen(window.getSize()) // setting exit screen to window size
+	, scoreBoard(window.getSize()) // setting score board to window size
 	, score(startScreen.font, sf::Vector2f(10.0f, window.getSize().y - 40.0f)) // setting score font and position
+	, saveScoreScreen(window.getSize()) // setting save score screen to window size
 {
 }
 
@@ -792,7 +826,7 @@ void Game::handleClouds(float deltaTime) {
 		it->move(-cloudSpeed * deltaTime, 0.0f); // move the cloud to the left with cloudSpeed
 
 		// Remove clouds that have gone off the screen
-		if (it->getPosition().x < -it -> getGlobalBounds().width) {
+		if (it->getPosition().x < -it->getGlobalBounds().width) {
 			it = clouds.erase(it);
 		}
 		else {
@@ -824,14 +858,26 @@ void Game::restartGame() {
 	// Reset the bird position and velocity
 	bird.setPosition(sf::Vector2f(200.0f, window.getSize().y / 2)); // set bird position
 	bird.setVelocity(sf::Vector2f(0.0f, 0.0f)); // set bird velocity	
+	bird.update(firstSpacePress); // update bird position and enable gravity
+	firstSpacePress = false; // set first space press to false
 
+	// Consecutive missed words reset
+	consecutiveMissedWords = 0;
 
 	// Reset the multiplier
 	score.reset();
 
+	// restart game clock
+	gameClock.restart();
+	gameStartTime = 0.0f; // set game start time to 0
+
+	// Hide screens
+	saveScoreScreen.isVisible = false; // hide save score screen
+	exitScreen.isVisible = false; // hide exit screen
+
 
 	// Reset the floating words
-	floatingWords.isVisible = false; // show floating words
+	floatingWords.reset(); // reset floating words
 	float startSpawnTime = 0.5f; // set start spawn time to 0.5 seconds
 	for (size_t i = 0; i < floatingWords.words.size(); i++) {
 		float yPosition = std::rand() % static_cast<int>(floatingWords.floorPosition - floatingWords.skyPosition - floatingWords.words[i].getGlobalBounds().height) + floatingWords.skyPosition;
@@ -839,15 +885,8 @@ void Game::restartGame() {
 		floatingWords.spawnTimes[i] = i * floatingWords.spawnInterval;
 	}
 
-	exitScreen.isVisible = false; // hide exit screen
-
-	gameClock.restart(); // restart game clock
-
-	gameStartTime = 0.0f; // set game start time to 0
 	floatingWords.setStartTime(gameStartTime); // set floating words start time to 0
-
-	firstSpacePress = true; // set first space press to true
-
+	floatingWords.isVisible = true; // show floating words
 	score.reset(); // reset the score
 }
 
@@ -867,17 +906,11 @@ void Game::processEvents() {
 				gameStartTime = gameClock.getElapsedTime().asSeconds(); // set game start time to current time
 				floatingWords.setStartTime(gameStartTime); // set floating words start time to current time
 			}
-			else if (exitScreen.isVisible) {
-				restartGame();
-				bird.update(firstSpacePress); // update bird position and enable gravity
-				firstSpacePress = false; // set first space press to false
-				floatingWords.isVisible = true; // show floating words
-
-			}
 			else {
 				bird.flap(); // flap bird when space key is pressed
 			}
 		}
+
 		else if (saveScoreScreen.isVisible) {
 			if (event.type == sf::Event::TextEntered) {
 				saveScoreScreen.handleInput(event);
@@ -905,6 +938,7 @@ void Game::processEvents() {
 				}
 			}
 		}
+
 	}
 }
 
@@ -933,12 +967,21 @@ void Game::update(float deltaTime) {
 				floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
 				floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
 				i--; // decrement i
+				consecutiveMissedWords = 0; // reset the consecutive missed words
 			}
 			else if (wordBounds.left + wordBounds.width < birdBounds.left) { // check if the word has gone off the screen
 				score.resetMultiplier(); // reset the multiplier
 				floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
 				floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
 				i--; // decrement i
+				consecutiveMissedWords++; // increment the consecutive missed words
+				if (consecutiveMissedWords >= 3) {
+					floatingWords.isVisible = false; // hide floating words
+					exitScreen.isVisible = true; // show exit screen
+					exitScreen.setScore(score.getValue()); // set the score on the exit screen
+					bird.setPosition(sf::Vector2f(-100.0f, -100.0f)); // set bird position off the screen
+					break;
+				}
 			}
 		}
 	}
@@ -973,6 +1016,7 @@ void Game::render() {
 	}
 	startScreen.draw(window);
 	exitScreen.draw(window);
+	saveScoreScreen.draw(window);
 	floatingWords.draw(window);
 	if (!startScreen.isVisible && !exitScreen.isVisible) {
 		score.draw(window);
