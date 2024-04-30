@@ -264,6 +264,7 @@ private:
 	sf::Text text;
 	std::vector<std::pair<std::string, int>> scores;
 	const std::string filename = "scoreboard.txt";
+	
 
 public:
 	sf::Font font;
@@ -272,10 +273,12 @@ public:
 	void saveScores();
 	void loadScores();
 	void draw(sf::RenderWindow& window);
+	bool isVisible;
 
 };
 
-ScoreBoard::ScoreBoard(const sf::Vector2u& windowSize) {
+ScoreBoard::ScoreBoard(const sf::Vector2u& windowSize)
+	: isVisible(false) {
 
 	// Load the font
 	if (!font.loadFromFile("assets/arial.ttf")) {
@@ -296,6 +299,20 @@ ScoreBoard::ScoreBoard(const sf::Vector2u& windowSize) {
 	text.setFillColor(sf::Color::White);
 
 	loadScores();
+
+	std::stringstream ss;
+
+	ss << "Scoreboard" << std::endl;
+	for (const auto& score : scores) {
+		ss << score.first << " " << score.second << std::endl;
+	}
+
+	text.setString(ss.str());
+	text.setPosition(
+		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
+		(windowSize.y - text.getGlobalBounds().height) / 2.0f
+	);
+
 }
 
 void ScoreBoard::loadScores() {
@@ -332,22 +349,11 @@ void ScoreBoard::saveScores() {
 }
 
 void ScoreBoard::draw(sf::RenderWindow& window) {
-	window.draw(backgroundBox);
-	window.draw(text);
+	if (isVisible) {
+		window.draw(backgroundBox);
+		window.draw(text);
 
-	std::stringstream ss;
-
-	ss << "Scoreboard" << std::endl;
-	for (const auto& score : scores) {
-		ss << score.first << " " << score.second << std::endl;
 	}
-
-	text.setString(ss.str());
-	text.setPosition(
-		(window.getSize().x - text.getGlobalBounds().width) / 2.0f,
-		(window.getSize().y - text.getGlobalBounds().height) / 2.0f
-	);
-	window.draw(text);
 }
 
 // Save ScoreBoard function
@@ -382,7 +388,7 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 	backgroundBox.setFillColor(sf::Color::Black);
 	backgroundBox.setPosition(
 		(windowSize.x - backgroundBox.getSize().x) / 2.0f,
-		(windowSize.y - backgroundBox.getSize().y) / 2.0f
+		((windowSize.y / 2.0f) - backgroundBox.getSize().y) / 2.0f
 	); // center the box
 
 	// Set up the text
@@ -393,7 +399,7 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 	text.setFillColor(sf::Color::White);
 	text.setPosition(
 		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
-		(windowSize.y - text.getGlobalBounds().height) / 2.0f - 50.0f
+		((windowSize.y / 2.0f) - text.getGlobalBounds().height) / 2.0f - 50.0f
 
 	); // center the text above the input
 
@@ -423,13 +429,24 @@ void SaveScoreScreen::handleInput(sf::Event& event) {
 		if (event.text.unicode == '\b' && playerName.size() > 0) {
 			playerName.pop_back();
 		}
-		else if (playerName.size() < 3 && std::isalpha(event.text.unicode)) {
-			playerName += static_cast<char>(event.text.unicode);
+		else if (std::isalpha(event.text.unicode)) {
+			// Convert the unicode character to uppercase
+			char upercaseChar = static_cast<char>(std::toupper(event.text.unicode));
+			
+			// Limit the player name to 3 characters
+			if (playerName.size() < 3) {
+				playerName += upercaseChar;
+			}
+			// Replace the first character if the player name is already 3 characters long
+			else {
+				playerName.erase(0, 1); // erase the first character
+				playerName += upercaseChar;
+			}
 		}
 		nameText.setString(playerName);
 		nameText.setPosition(
-			(windowSize.x - nameText.getGlobalBounds().width) / 2.0f,
-			(windowSize.y - nameText.getGlobalBounds().height) / 2.0f
+			(windowSize.x- nameText.getGlobalBounds().width) / 2.0f,
+			((windowSize.y / 2.0 ) - nameText.getGlobalBounds().height) / 2.0f
 		); // center the text
 
 	}
@@ -459,7 +476,7 @@ public:
 };
 
 // ExitScreen font, background and text setup
-ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(false) {
+ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(true) {
 	// Load the font
 	if (!font.loadFromFile("assets/arial.ttf")) {
 		std::cout << "Error loading font" << std::endl;
@@ -541,7 +558,7 @@ public:
 };
 
 // StartScreen font, background and text setup
-StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(true) {
+StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(false) {
 	// Load the font
 	if (!font.loadFromFile("assets/arial.ttf")) {
 		std::cout << "Error loading front" << std::endl;
@@ -874,7 +891,7 @@ void Game::restartGame() {
 	// Hide screens
 	saveScoreScreen.isVisible = false; // hide save score screen
 	exitScreen.isVisible = false; // hide exit screen
-
+	scoreBoard.isVisible = false; // hide score board
 
 	// Reset the floating words
 	floatingWords.reset(); // reset floating words
@@ -897,7 +914,10 @@ void Game::processEvents() {
 		if (event.type == sf::Event::Closed) {
 			window.close();
 		}
-		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
+
+		// 'Space' key is pressed
+		if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Space) {
+			// Start screen is visible only
 			if (startScreen.isVisible) {
 				startScreen.isVisible = false; // hide start screen
 				bird.update(firstSpacePress); // update bird position and enable gravity
@@ -907,34 +927,45 @@ void Game::processEvents() {
 				floatingWords.setStartTime(gameStartTime); // set floating words start time to current time
 			}
 			else {
-				bird.flap(); // flap bird when space key is pressed
+				// In Game Screen
+				if (!exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
+					bird.flap(); // flap bird when space key is pressed
+				}
 			}
 		}
 
-		else if (saveScoreScreen.isVisible) {
-			if (event.type == sf::Event::TextEntered) {
+		// General Character input
+		if (event.type == sf::Event::TextEntered) {
+			// Start screen is visible only
+			if (saveScoreScreen.isVisible) {
 				saveScoreScreen.handleInput(event);
 			}
 		}
-		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S ) {
-			if (exitScreen.isVisible && saveScoreScreen.isVisible == false) {
-				saveScoreScreen.isVisible = true;
-				exitScreen.isVisible = false;
+		
+		// IF 'S' key is pressed
+		if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S ) {
+			// Exit screen is visible only
+			if (exitScreen.isVisible && !saveScoreScreen.isVisible) {
+				saveScoreScreen.isVisible = true; // show save score screen
+				exitScreen.isVisible = false; // hide exit screen
+				scoreBoard.isVisible = true; // show score board
 			}
 		}
-		else if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
+		
+		// IF 'Enter' key is pressed
+		if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
+			// Exit screen is visible only
 			if (exitScreen.isVisible) {
 				restartGame();
 			}
-			else if (saveScoreScreen.isVisible) {
-				std::string playerName = saveScoreScreen.getPlayerName();
-				std::cout << "Player Name: " << playerName << std::endl;
+			if (saveScoreScreen.isVisible) {
+				std::string playerName = saveScoreScreen.getPlayerName(); 
 
 				if (playerName.size() == 3) {
-					scoreBoard.loadScores();
 					scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
 					scoreBoard.saveScores();
 					restartGame();
+
 				}
 			}
 		}
@@ -979,7 +1010,7 @@ void Game::update(float deltaTime) {
 					floatingWords.isVisible = false; // hide floating words
 					exitScreen.isVisible = true; // show exit screen
 					exitScreen.setScore(score.getValue()); // set the score on the exit screen
-					bird.setPosition(sf::Vector2f(-100.0f, -100.0f)); // set bird position off the screen
+					bird.setPosition(sf::Vector2f(-400.0f, -400.0f)); // set bird position off the screen
 					break;
 				}
 			}
@@ -1014,14 +1045,22 @@ void Game::render() {
 	if (bird.getPosition().x >= 0 && bird.getPosition().y >= 0) {
 		bird.draw(window);
 	}
-	startScreen.draw(window);
-	exitScreen.draw(window);
-	saveScoreScreen.draw(window);
-	floatingWords.draw(window);
+	if (startScreen.isVisible) {
+		startScreen.draw(window);
+	}
+	if (exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
+		exitScreen.draw(window);
+	}
+	if (saveScoreScreen.isVisible) {
+		saveScoreScreen.draw(window);
+	}
+	if (floatingWords.isVisible) {
+		floatingWords.draw(window);
+	}
 	if (!startScreen.isVisible && !exitScreen.isVisible) {
 		score.draw(window);
 	}
-
+	scoreBoard.draw(window);
 	window.display();
 
 }

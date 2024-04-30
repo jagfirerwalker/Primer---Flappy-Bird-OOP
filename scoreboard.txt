@@ -1,2 +1,8 @@
 sds 17
 sds 9
+MAG 0
+SDF 0
+DFG 0
+SDF 0
+JAG 0
+SDF 0
