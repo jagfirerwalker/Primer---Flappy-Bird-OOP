@@ -274,6 +274,7 @@ public:
 	void loadScores();
 	void draw(sf::RenderWindow& window);
 	bool isVisible;
+	void setScoreBoard(const sf::Vector2u& windowSize);
 
 };
 
@@ -300,11 +301,17 @@ ScoreBoard::ScoreBoard(const sf::Vector2u& windowSize)
 
 	loadScores();
 
+	
+	setScoreBoard(windowSize);
+}
+
+void ScoreBoard::setScoreBoard(const sf::Vector2u& windowSize) {
 	std::stringstream ss;
 
 	ss << "Scoreboard" << std::endl;
 	for (const auto& score : scores) {
 		ss << score.first << " " << score.second << std::endl;
+		std::cout << "Score refreshed: " << score.first << " " << score.second << std::endl;
 	}
 
 	text.setString(ss.str());
@@ -312,7 +319,7 @@ ScoreBoard::ScoreBoard(const sf::Vector2u& windowSize)
 		(windowSize.x - text.getGlobalBounds().width) / 2.0f,
 		(windowSize.y - text.getGlobalBounds().height) / 2.0f
 	);
-
+	
 }
 
 void ScoreBoard::loadScores() {
@@ -323,14 +330,17 @@ void ScoreBoard::loadScores() {
 		int score;
 		while (file >> name >> score) {
 			scores.push_back(std::make_pair(name, score));
+			std::cout << "Score Loaded: " << name << " " << score << std::endl;
 		}
 		file.close();
 	}
 }
 
 void ScoreBoard::addScore(const std::string& name, int score) {
+	std::cout << name << " " << score << std::endl;
 	scores.push_back(std::make_pair(name, score));
-	std::sort(scores.begin(), scores.end(), [](const auto& a, const auto& b) {
+	// Sort the scores in descending order
+	std::sort(scores.begin(), scores.end(), [](const auto& a, const auto& b) { // sort the scores in descending order
 		return a.second > b.second; // a.second is the score in the pair
 		}); // sort the scores in descending order
 	if (scores.size() > 10) {
@@ -343,6 +353,7 @@ void ScoreBoard::saveScores() {
 	if (file.is_open()) {
 		for (const auto& score : scores) {
 			file << score.first << " " << score.second << std::endl;
+			std::cout << "Score Saved: " << score.first << score.second << std::endl;
 		}
 		file.close();
 	}
@@ -372,6 +383,7 @@ public:
 	void handleInput(sf::Event& event);
 	bool isVisible;
 	std::string getPlayerName() const;
+	void resetPlayerName();
 };
 
 SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
@@ -427,7 +439,8 @@ void SaveScoreScreen::draw(sf::RenderWindow& window) {
 void SaveScoreScreen::handleInput(sf::Event& event) {
 	if (event.type == sf::Event::TextEntered) {
 		if (event.text.unicode == '\b' && playerName.size() > 0) {
-			playerName.pop_back();
+			// Erase the last character
+			playerName.erase(playerName.size() - 1, 1);
 		}
 		else if (std::isalpha(event.text.unicode)) {
 			// Convert the unicode character to uppercase
@@ -454,6 +467,16 @@ void SaveScoreScreen::handleInput(sf::Event& event) {
 
 std::string SaveScoreScreen::getPlayerName() const {
 	return playerName;
+}
+
+// Reset playerName to default and size 0
+void SaveScoreScreen::resetPlayerName() {
+	playerName.clear();
+	nameText.setString(playerName);
+	nameText.setPosition(
+		(windowSize.x - nameText.getGlobalBounds().width) / 2.0f,
+		((windowSize.y / 2.0) - nameText.getGlobalBounds().height) / 2.0f
+	); // center the text
 }
 
 // EXIT SCREEN CLASS
@@ -881,8 +904,15 @@ void Game::restartGame() {
 	// Consecutive missed words reset
 	consecutiveMissedWords = 0;
 
+	// Reset the PlayerName
+	saveScoreScreen.resetPlayerName();
+
 	// Reset the multiplier
 	score.reset();
+
+	// Load the scores
+	scoreBoard.loadScores();
+	scoreBoard.setScoreBoard(window.getSize());
 
 	// restart game clock
 	gameClock.restart();
@@ -949,27 +979,28 @@ void Game::processEvents() {
 				saveScoreScreen.isVisible = true; // show save score screen
 				exitScreen.isVisible = false; // hide exit screen
 				scoreBoard.isVisible = true; // show score board
+				
+	
 			}
 		}
 		
 		// IF 'Enter' key is pressed
 		if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Enter) {
 			// Exit screen is visible only
-			if (exitScreen.isVisible) {
+			if (exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
 				restartGame();
 			}
-			if (saveScoreScreen.isVisible) {
-				std::string playerName = saveScoreScreen.getPlayerName(); 
-
-				if (playerName.size() == 3) {
-					scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
-					scoreBoard.saveScores();
-					restartGame();
-
-				}
+			if (saveScoreScreen.isVisible && scoreBoard.isVisible) {
+				std::string playerName = saveScoreScreen.getPlayerName();
+				std::cout << playerName << std::endl;
+				std::cout << score.getValue() << std::endl;
+			}
+			if (saveScoreScreen.isVisible && scoreBoard.isVisible && saveScoreScreen.getPlayerName().size() == 3) {
+				scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
+				scoreBoard.saveScores();
+				restartGame();
 			}
 		}
-
 	}
 }
 
