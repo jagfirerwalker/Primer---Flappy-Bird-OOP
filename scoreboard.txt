@@ -1,2 +1,10 @@
+AAD 160
+AAE 106
+SDF 99
+AAA 96
+AAC 47
+AAB 38
 sds 17
 sds 9
+AAA 7
+MAG 0
