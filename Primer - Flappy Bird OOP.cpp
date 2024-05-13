@@ -456,6 +456,7 @@ void SaveScoreScreen::setScore(int score) {
     ); // center the text
 }
 
+
 // Draw SaveScoreScreen when isVisible is true
 void SaveScoreScreen::draw(sf::RenderWindow& window) {
     if (isVisible) {
@@ -592,16 +593,6 @@ void ExitScreen::draw(sf::RenderWindow& window) const {
         window.draw(scoreText);
         window.draw(saveScoreText);
     }
-}
-
-void ExitScreen::toogleSaveScoreOption() {
-	saveScoreSelected = !saveScoreSelected;
-	saveScoreText.setFillColor(saveScoreSelected ? sf::Color::Red : sf::Color::Green);
-
-}
-
-bool ExitScreen::isSaveScoreSelected() const {
-	return saveScoreSelected;
 }
 
 
