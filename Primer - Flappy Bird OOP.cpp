@@ -426,7 +426,7 @@ SaveScoreScreen::SaveScoreScreen(const sf::Vector2u& windowSize)
 
     // Set up the text
     text.setFont(font);
-    text.setString("Enter your name (3 letters): \n\n");
+    text.setString("3 characters + Enter: \n\n");
 
     text.setCharacterSize(24);
     text.setFillColor(sf::Color::White);
@@ -468,7 +468,9 @@ void SaveScoreScreen::draw(sf::RenderWindow& window) {
 }
 
 void SaveScoreScreen::handleInput(sf::Event& event) {
+
     if (event.type == sf::Event::TextEntered) {
+        // Handle backspace when the player name is not empty
         if (event.text.unicode == '\b' && playerName.size() > 0) {
             // Erase the last character
             playerName.erase(playerName.size() - 1, 1);
@@ -530,7 +532,7 @@ public:
 };
 
 // ExitScreen font, background and text setup
-ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(true) {
+ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(false) {
     // Load the font
     if (!font.loadFromFile("assets/arial.ttf")) {
         std::cout << "Error loading font" << std::endl;
@@ -545,7 +547,7 @@ ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(true) {
     );
 
     text_heading.setFont(font);
-    text_heading.setString("Game Over!");
+    text_heading.setString("Game Over!\n\n");
     text_heading.setCharacterSize(40);
     text_heading.setFillColor(sf::Color::White);
     text_heading.setPosition(
@@ -612,7 +614,7 @@ public:
 };
 
 // StartScreen font, background and text setup
-StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(false) {
+StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(true) {
     // Load the font
     if (!font.loadFromFile("assets/arial.ttf")) {
         std::cout << "Error loading front" << std::endl;
@@ -753,31 +755,35 @@ private:
     int value;
     int multiplier;
     sf::Text scoreText;
-    sf::Text multiplierText;
+    sf::Text livesText;
 
 public:
     Score(const sf::Font& font, const sf::Vector2f& position);
     void increment(int amount);
     void decrement(int amount);
+    void incrementMultiplier();
+    void resetMultiplier();
+    void decrementLives();
+    int getLives() const;
+    void resetLives();
     void reset();
     void update();
     void draw(sf::RenderWindow& window) const;
     int getValue() const;
-    void incrementMultiplier();
-    void resetMultiplier();
     bool isVisible;
+    int lives;
 };
 
 Score::Score(const sf::Font& font, const sf::Vector2f& position)
-    : value(0), multiplier(1), isVisible(true) {
+    : value(0), multiplier(1), lives(3), isVisible(true) {
     scoreText.setFont(font);
     scoreText.setCharacterSize(24);
     scoreText.setFillColor(sf::Color::White);
     scoreText.setPosition(position);
 
-    multiplierText.setFont(font);
-    multiplierText.setCharacterSize(24);
-    multiplierText.setFillColor(sf::Color::White);
+    livesText.setFont(font);
+    livesText.setCharacterSize(24);
+    livesText.setFillColor(sf::Color::White);
 }
 
 void Score::increment(int amount) {
@@ -793,24 +799,6 @@ void Score::reset() {
     multiplier = 1;
 }
 
-void Score::update() {
-    scoreText.setString("Score: " + std::to_string(value));
-    multiplierText.setString(" X " + std::to_string(multiplier));
-    sf::FloatRect scoreBounds = scoreText.getGlobalBounds();
-    multiplierText.setPosition(scoreBounds.left + scoreBounds.width + 10.0f, scoreText.getPosition().y);
-}
-
-void Score::draw(sf::RenderWindow& window) const {
-    if (isVisible) {
-        window.draw(scoreText);
-        window.draw(multiplierText);
-    }
-}
-
-int Score::getValue() const {
-    return value;
-}
-
 void Score::incrementMultiplier() {
     multiplier++;
 }
@@ -819,8 +807,35 @@ void Score::resetMultiplier() {
     multiplier = 1;
 }
 
+void Score::decrementLives() {
+    lives--;
+}
 
+int Score::getLives() const {
+    return lives;
+}
 
+void Score::resetLives() {
+    lives = 3;
+}
+
+void Score::update() {
+    scoreText.setString("Score: " + std::to_string(value));
+    livesText.setString(" Lifes: " + std::to_string(lives));
+    sf::FloatRect scoreBounds = scoreText.getGlobalBounds();
+    livesText.setPosition(scoreBounds.left + scoreBounds.width + 10.0f, scoreText.getPosition().y);
+}
+
+void Score::draw(sf::RenderWindow& window) const {
+    if (isVisible) {
+        window.draw(scoreText);
+        window.draw(livesText);
+    }
+}
+
+int Score::getValue() const {
+    return value;
+}
 
 
 // GAME SETUP 
@@ -844,7 +859,6 @@ private:
     SaveScoreScreen saveScoreScreen;
     sf::Texture cloudTexture;
     std::vector<sf::Sprite> clouds;
-    int consecutiveMissedWords;
 
 public:
     Game();
@@ -937,8 +951,8 @@ void Game::restartGame() {
     bird.update(firstSpacePress); // update bird position and enable gravity
     firstSpacePress = false; // set first space press to false
 
-    // Consecutive missed words reset
-    consecutiveMissedWords = 0;
+    // Reset the lives
+    score.resetLives();
 
     // Reset the PlayerName
     saveScoreScreen.resetPlayerName();
@@ -982,6 +996,13 @@ void Game::processEvents() {
     while (window.pollEvent(event)) {
         if (event.type == sf::Event::Closed) {
             window.close();
+            return;
+        }
+
+        // General Character input on save score screen
+        if (saveScoreScreen.isVisible && event.type == sf::Event::TextEntered) {
+            saveScoreScreen.handleInput(event);
+            return;
         }
 
         // 'Space' key is pressed
@@ -991,35 +1012,44 @@ void Game::processEvents() {
                 startScreen.isVisible = false; // hide start screen
                 bird.update(firstSpacePress); // update bird position and enable gravity
                 firstSpacePress = false; // set first space press to false
+                gameClock.restart(); // restart game clock
                 floatingWords.isVisible = true; // show floating words
                 gameStartTime = gameClock.getElapsedTime().asSeconds(); // set game start time to current time
                 floatingWords.setStartTime(gameStartTime); // set floating words start time to current time
+                return;
             }
             else {
                 // In Game Screen
                 if (!exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
                     bird.flap(); // flap bird when space key is pressed
+                    return;
                 }
-            }
-        }
-
-        // General Character input
-        if (event.type == sf::Event::TextEntered) {
-            // Start screen is visible only
-            if (saveScoreScreen.isVisible) {
-                saveScoreScreen.handleInput(event);
             }
         }
 
         // IF 'S' key is pressed
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S) {
             // Exit screen is visible only
-            if (exitScreen.isVisible && !saveScoreScreen.isVisible) {
-                saveScoreScreen.isVisible = true; // show save score screen
-                exitScreen.isVisible = false; // hide exit screen
-                scoreBoard.isVisible = true; // show score board
-                saveScoreScreen.setScore(score.getValue()); // set the score on the save score screen
-                score.isVisible = false; // hide score
+            if (exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
+                    saveScoreScreen.isVisible = true; // show save score screen
+                    exitScreen.isVisible = false; // hide exit screen
+                    scoreBoard.isVisible = true; // show score board
+                    saveScoreScreen.setScore(score.getValue()); // set the score on the save score screen
+                    score.isVisible = false; // hide score
+
+                    // Consume the TextEntered event
+                    /* 
+                    Reason for this is that SFML Library create 2 events for each key press. 1 for KeyPressed event and 1 for TextEntered event. This means that the 'S' key press will be registered twice, which causes the scoreboad to be displayed with an 'S' character already entered. This is a workaround to consume the TextEntered event so that the 'S' key press is only registered once.
+                    */
+                    sf::Event textEnteredEvent;
+                    // Loop that waits for the 'S' key to be released
+                    while (window.pollEvent(textEnteredEvent)) {
+                        //
+                        if (textEnteredEvent.type == sf::Event::TextEntered && textEnteredEvent.text.unicode == 'S') {
+                            break;
+                        }
+                    }
+                    return;
             }
         }
 
@@ -1028,18 +1058,17 @@ void Game::processEvents() {
             // Exit screen is visible only
             if (exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
                 restartGame();
+                return;
             }
-            if (saveScoreScreen.isVisible && scoreBoard.isVisible) {
-                std::string playerName = saveScoreScreen.getPlayerName();
-                std::cout << playerName << std::endl;
-                std::cout << score.getValue() << std::endl;
-            }
+            // Save player name and score when a 3 letter name is entered
             if (saveScoreScreen.isVisible && scoreBoard.isVisible && saveScoreScreen.getPlayerName().size() == 3) {
                 scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
                 scoreBoard.saveScores();
                 restartGame();
+                return;
             }
         }
+
     }
 }
 
@@ -1054,10 +1083,11 @@ void Game::update(float deltaTime) {
     ground.update(deltaTime); // update ground position
     floatingWords.update(deltaTime); // update floating words position
     handleClouds(deltaTime); // update clouds position  
-
+    score.update(); // update the score text
     // Check for collision between bird, window bounds and floating words
     sf::FloatRect birdBounds = bird.getBrounds();
 
+   
     // Check for collision between bird and window bounds
     for (size_t i = 0; i < floatingWords.words.size(); i++) {
         if ((floatingWords.spawnTimes[i] <= gameClock.getElapsedTime().asSeconds() - gameStartTime) && floatingWords.isVisible) {
@@ -1068,27 +1098,28 @@ void Game::update(float deltaTime) {
                 floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
                 floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
                 i--; // decrement i
-                consecutiveMissedWords = 0; // reset the consecutive missed words
+                score.resetLives();
             }
             else if (wordBounds.left + wordBounds.width < birdBounds.left - 50.0f) { // check if the word has passed the bird by 10 pixels
                 floatingWords.words[i].setFillColor(sf::Color::Red); // set the color of the word to red
-
                 if (wordBounds.left + wordBounds.width < birdBounds.left - 100.0f) {
 
-                    score.resetMultiplier(); // reset the multiplier
                     floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
                     floatingWords.spawnTimes.erase(floatingWords.spawnTimes.begin() + i); // erase the spawn time
+                    score.resetMultiplier(); // reset the multiplier
+                    score.decrementLives(); // decrement the lives
                     i--; // decrement i
-                    consecutiveMissedWords++; // increment the consecutive missed words
-                    if (consecutiveMissedWords >= 3) {
-                        floatingWords.isVisible = false; // hide floating words
-                        exitScreen.isVisible = true; // show exit screen
-                        exitScreen.setScore(score.getValue()); // set the score on the exit screen
-                        score.isVisible = false; // hide score
-                        bird.setPosition(sf::Vector2f(-400.0f, -400.0f)); // set bird position off the screen
-                        break;
-                    }
                 }
+
+                if (score.getLives() == 0) {
+                    floatingWords.isVisible = false; // hide floating words
+                    exitScreen.isVisible = true; // show exit screen
+                    exitScreen.setScore(score.getValue()); // set the score on the exit screen
+                    score.isVisible = false; // hide score
+                    bird.setPosition(sf::Vector2f(-400.0f, -400.0f)); // set bird position off the screen
+                    break;
+
+                }               
             }
         }
     }
@@ -1106,7 +1137,7 @@ void Game::update(float deltaTime) {
         }
     }
 
-    score.update(); // update the score text
+    
 
 }
 
