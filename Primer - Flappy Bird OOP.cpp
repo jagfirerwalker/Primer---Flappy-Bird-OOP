@@ -468,7 +468,9 @@ void SaveScoreScreen::draw(sf::RenderWindow& window) {
 }
 
 void SaveScoreScreen::handleInput(sf::Event& event) {
+
     if (event.type == sf::Event::TextEntered) {
+        // Handle backspace when the player name is not empty
         if (event.text.unicode == '\b' && playerName.size() > 0) {
             // Erase the last character
             playerName.erase(playerName.size() - 1, 1);
@@ -530,7 +532,7 @@ public:
 };
 
 // ExitScreen font, background and text setup
-ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(true) {
+ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(false) {
     // Load the font
     if (!font.loadFromFile("assets/arial.ttf")) {
         std::cout << "Error loading font" << std::endl;
@@ -545,7 +547,7 @@ ExitScreen::ExitScreen(const sf::Vector2u& windowSize) : isVisible(true) {
     );
 
     text_heading.setFont(font);
-    text_heading.setString("Game Over!");
+    text_heading.setString("Game Over!\n\n");
     text_heading.setCharacterSize(40);
     text_heading.setFillColor(sf::Color::White);
     text_heading.setPosition(
@@ -612,7 +614,7 @@ public:
 };
 
 // StartScreen font, background and text setup
-StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(false) {
+StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(true) {
     // Load the font
     if (!font.loadFromFile("assets/arial.ttf")) {
         std::cout << "Error loading front" << std::endl;
@@ -982,6 +984,13 @@ void Game::processEvents() {
     while (window.pollEvent(event)) {
         if (event.type == sf::Event::Closed) {
             window.close();
+            return;
+        }
+
+        // General Character input on save score screen
+        if (saveScoreScreen.isVisible && event.type == sf::Event::TextEntered) {
+            saveScoreScreen.handleInput(event);
+            return;
         }
 
         // 'Space' key is pressed
@@ -991,35 +1000,44 @@ void Game::processEvents() {
                 startScreen.isVisible = false; // hide start screen
                 bird.update(firstSpacePress); // update bird position and enable gravity
                 firstSpacePress = false; // set first space press to false
+                gameClock.restart(); // restart game clock
                 floatingWords.isVisible = true; // show floating words
                 gameStartTime = gameClock.getElapsedTime().asSeconds(); // set game start time to current time
                 floatingWords.setStartTime(gameStartTime); // set floating words start time to current time
+                return;
             }
             else {
                 // In Game Screen
                 if (!exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
                     bird.flap(); // flap bird when space key is pressed
+                    return;
                 }
-            }
-        }
-
-        // General Character input
-        if (event.type == sf::Event::TextEntered) {
-            // Start screen is visible only
-            if (saveScoreScreen.isVisible) {
-                saveScoreScreen.handleInput(event);
             }
         }
 
         // IF 'S' key is pressed
         if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::S) {
             // Exit screen is visible only
-            if (exitScreen.isVisible && !saveScoreScreen.isVisible) {
-                saveScoreScreen.isVisible = true; // show save score screen
-                exitScreen.isVisible = false; // hide exit screen
-                scoreBoard.isVisible = true; // show score board
-                saveScoreScreen.setScore(score.getValue()); // set the score on the save score screen
-                score.isVisible = false; // hide score
+            if (exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
+                    saveScoreScreen.isVisible = true; // show save score screen
+                    exitScreen.isVisible = false; // hide exit screen
+                    scoreBoard.isVisible = true; // show score board
+                    saveScoreScreen.setScore(score.getValue()); // set the score on the save score screen
+                    score.isVisible = false; // hide score
+
+                    // Consume the TextEntered event
+                    /* 
+                    Reason for this is that SFML Library create 2 events for each key press. 1 for KeyPressed event and 1 for TextEntered event. This means that the 'S' key press will be registered twice, which causes the scoreboad to be displayed with an 'S' character already entered. This is a workaround to consume the TextEntered event so that the 'S' key press is only registered once.
+                    */
+                    sf::Event textEnteredEvent;
+                    // Loop that waits for the 'S' key to be released
+                    while (window.pollEvent(textEnteredEvent)) {
+                        //
+                        if (textEnteredEvent.type == sf::Event::TextEntered && textEnteredEvent.text.unicode == 'S') {
+                            break;
+                        }
+                    }
+                    return;
             }
         }
 
@@ -1028,18 +1046,17 @@ void Game::processEvents() {
             // Exit screen is visible only
             if (exitScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) {
                 restartGame();
+                return;
             }
-            if (saveScoreScreen.isVisible && scoreBoard.isVisible) {
-                std::string playerName = saveScoreScreen.getPlayerName();
-                std::cout << playerName << std::endl;
-                std::cout << score.getValue() << std::endl;
-            }
+            // Save player name and score when a 3 letter name is entered
             if (saveScoreScreen.isVisible && scoreBoard.isVisible && saveScoreScreen.getPlayerName().size() == 3) {
                 scoreBoard.addScore(saveScoreScreen.getPlayerName(), score.getValue());
                 scoreBoard.saveScores();
                 restartGame();
+                return;
             }
         }
+
     }
 }
 
