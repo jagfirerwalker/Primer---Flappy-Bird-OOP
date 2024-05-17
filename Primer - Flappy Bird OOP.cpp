@@ -11,7 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
-
+#include <SFML/Audio.hpp>
 
 // CLOUD CLASS
 class Cloud {
@@ -39,19 +39,19 @@ Cloud::Cloud(const std::string& texturePath, float cloudFloatSpeed, float respaw
     // Set the cloud sprite 
     sprite.setTexture(texture);
     sprite.setScale(0.5f, 0.5f); // Set the cloud scale to 0.5 on the x and y axis
-    sprite.setPosition(std::rand() % static_cast<int>(respawnXPosition), std::rand() % 500); // Set the cloud position to a random position on the y-axis
+    sprite.setPosition(static_cast<float>(std::rand() % static_cast<int>(respawnXPosition)), static_cast<float>(std::rand() % 500)); // Set the cloud position to a random position on the y-axis
 
 }
 
 // Draw cloud on window, spawn multiple on screen and respawning it when it goes off the screen
 void Cloud::update(float deltaTime) {
     // Move the cloud to the left
-    sprite.move(-cloudFloatSpeed * deltaTime, 0); // Move the cloud to the left, based on the frame rate
+    sprite.move(-cloudFloatSpeed * deltaTime, 0.0f); // Move the cloud to the left, based on the frame rate
 
 
     // Respawn the cloud when it goes off the screen
     if (isOffScreen()) { // Check if the cloud has gone off the screen
-        sprite.setPosition(respawnXPosition, std::rand() % 500); // Respawn the cloud to the right of the window
+        sprite.setPosition(respawnXPosition, static_cast<float>(std::rand() % 500)); // Respawn the cloud to the right of the window
     }
 }
 
@@ -94,7 +94,7 @@ public:
 Bird::Bird(const std::string& texturePath, const sf::Vector2f& position)
     : gravity(0.0003f), flapStrength(-0.3f) {
     if (!texture.loadFromFile(texturePath)) {
-        std::cout << "Error loading bird texture" << std::endl;
+        std::cerr << "Error loading bird texture" << std::endl;
     }
     sprite.setTexture(texture);
     sprite.setPosition(position);
@@ -167,25 +167,25 @@ public:
 ScrollingBackground::ScrollingBackground(const std::string& texturePath, float scrollSpeed)
     : scrollSpeed(scrollSpeed) {
     if (!texture.loadFromFile(texturePath)) {
-        std::cout << "Error loading background texture" << std::endl;
+        std::cerr << "Error loading background texture" << std::endl;
     }
     sprite1.setTexture(texture);
     sprite2.setTexture(texture);
-    sprite2.setPosition(static_cast<float>(texture.getSize().x), 0); // setting second background sprite position to the right of the first sprite
+    sprite2.setPosition(static_cast<float>(texture.getSize().x), 0.0f); // setting second background sprite position to the right of the first sprite
 }
 
 // Update background position by scrolling it to the left
 void ScrollingBackground::update(float deltaTime) {
     float scrollOffset = scrollSpeed * deltaTime;
-    sprite1.move(-scrollOffset, 0);
-    sprite2.move(-scrollOffset, 0);
+    sprite1.move(-scrollOffset, 0.0f);
+    sprite2.move(-scrollOffset, 0.0f);
 
     // Wrap the background sprites when they go off the screen
     if (sprite1.getPosition().x <= -sprite1.getTextureRect().width) {
-        sprite1.setPosition(sprite2.getPosition().x + sprite2.getTextureRect().width, 0);
+        sprite1.setPosition(sprite2.getPosition().x + sprite2.getTextureRect().width, 0.0f);
     }
     if (sprite2.getPosition().x <= -sprite2.getTextureRect().width) {
-        sprite2.setPosition(sprite1.getPosition().x + sprite1.getTextureRect().width, 0);
+        sprite2.setPosition(sprite1.getPosition().x + sprite1.getTextureRect().width, 0.0f);
     }
 }
 
@@ -215,19 +215,19 @@ public:
 ScrollingGround::ScrollingGround(const std::string& texturePath, float scrollSpeed, const sf::Vector2u& windowSize)
     : scrollSpeed(scrollSpeed) {
     if (!texture.loadFromFile(texturePath)) {
-        std::cout << "Error loading ground texture" << std::endl;
+        std::cerr << "Error loading ground texture" << std::endl;
     }
     sprite1.setTexture(texture);
     sprite2.setTexture(texture);
-    sprite1.setPosition(0, static_cast<float>(windowSize.y - texture.getSize().y)); // setting first ground sprite position at the bottom of the window
+    sprite1.setPosition(0.0f, static_cast<float>(windowSize.y - texture.getSize().y)); // setting first ground sprite position at the bottom of the window
     sprite2.setPosition(static_cast<float>(texture.getSize().x), static_cast<float>(windowSize.y - texture.getSize().y)); // setting second ground sprite position to the right of the first sprite
 }
 
 // Update ground position by scrolling it to the left
 void ScrollingGround::update(float deltaTime) {
     float scrollOffset = scrollSpeed * deltaTime;
-    sprite1.move(-scrollOffset, 0);
-    sprite2.move(-scrollOffset, 0);
+    sprite1.move(-scrollOffset, 0.0f);
+    sprite2.move(-scrollOffset, 0.0f);
 
     // Get the width of the sprite
     float spriteWidth = static_cast<float>(sprite1.getTextureRect().width);
@@ -328,7 +328,6 @@ void ScoreBoard::setScoreBoard(const sf::Vector2u& windowSize) {
 
     for (const auto& score : scores) {
         ss << std::left << std::setw(static_cast<int>(tabWidth)) << score.first << score.second << std::endl;
-        std::cout << "Score refreshed: " << score.first << " " << score.second << std::endl;
     }
 
     text.setString(ss.str());
@@ -347,7 +346,6 @@ void ScoreBoard::loadScores() {
         int score;
         while (file >> name >> score) {
             scores.push_back(std::make_pair(name, score));
-            std::cout << "Score Loaded: " << name << " " << score << std::endl;
         }
         file.close();
     }
@@ -370,7 +368,6 @@ void ScoreBoard::saveScores() {
     if (file.is_open()) {
         for (const auto& score : scores) {
             file << score.first << " " << score.second << std::endl;
-            std::cout << "Score Saved: " << score.first << score.second << std::endl;
         }
         file.close();
     }
@@ -621,7 +618,7 @@ StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(true) {
     }
 
     // Set up the background box
-    backgroundBox.setSize(sf::Vector2f(400.0f, 100.0f));
+    backgroundBox.setSize(sf::Vector2f(400.0f, 400.0f));
     backgroundBox.setFillColor(sf::Color::Black);
     backgroundBox.setPosition(
         (windowSize.x - backgroundBox.getSize().x) / 2.0f,
@@ -630,7 +627,7 @@ StartScreen::StartScreen(const sf::Vector2u& windowSize) : isVisible(true) {
 
     // Set up the text
     text.setFont(font);
-    text.setString("Press 'Space' to Start");
+    text.setString("Press 'Space' to Start \n\n\n by Jag Firewalker");
     text.setCharacterSize(24);
     text.setFillColor(sf::Color::White);
     text.setPosition(
@@ -859,6 +856,9 @@ private:
     SaveScoreScreen saveScoreScreen;
     sf::Texture cloudTexture;
     std::vector<sf::Sprite> clouds;
+    sf::Music backgroundMusic;
+    sf::SoundBuffer collisionSoundBuffer;
+    sf::Sound collisionSound;
 
 public:
     Game();
@@ -889,6 +889,16 @@ Game::Game()
     , score(startScreen.font, sf::Vector2f(10.0f, window.getSize().y - 40.0f)) // setting score font and position
     , saveScoreScreen(window.getSize()) // setting save score screen to window size
 {
+	// Load the background music
+    if (!backgroundMusic.openFromFile("assets/background_music.mp3")) {
+		std::cerr << "Error loading background music" << std::endl;
+	}
+	backgroundMusic.setLoop(true); // set the background music to loop
+
+    if (!collisionSoundBuffer.loadFromFile("assets/collision.mp3")) {
+		std::cerr << "Error loading hit sound" << std::endl;
+	}
+    collisionSound.setBuffer(collisionSoundBuffer); // set the collision sound buffer
 }
 
 
@@ -930,6 +940,10 @@ void Game::run() {
     sf::Clock clock; // creating clock object to measure time
     sf::Time accumulator = sf::Time::Zero; // setting time accumulator to zero
     sf::Time deltaTime = sf::seconds(1.0f / frameRate); // setting time delta to 1/frameRate
+    
+    backgroundMusic.setVolume(50.0f); // set the background music volume to 50% (half of the maximum volume
+    backgroundMusic.play(); // play the background music
+
     while (window.isOpen()) {
         processEvents(); // check for user input
         accumulator += clock.restart(); // add time elapsed since last restart to accumulator
@@ -1093,6 +1107,7 @@ void Game::update(float deltaTime) {
         if ((floatingWords.spawnTimes[i] <= gameClock.getElapsedTime().asSeconds() - gameStartTime) && floatingWords.isVisible) {
             sf::FloatRect wordBounds = floatingWords.getBounds(i);
             if (checkBirdWordCollision(birdBounds, wordBounds)) { // check for collision between bird and word
+                collisionSound.play(); // play the start sound
                 score.increment(10); // Increase the score by 10 points
                 score.incrementMultiplier(); // Increase the multiplier
                 floatingWords.words.erase(floatingWords.words.begin() + i); // erase the word
@@ -1123,6 +1138,16 @@ void Game::update(float deltaTime) {
             }
         }
     }
+
+    // Check if thereare no more words left in the float words
+    if (floatingWords.words.empty() && !exitScreen.isVisible) {
+        floatingWords.isVisible = false; // hide floating words
+        exitScreen.isVisible = true; // show exit screen
+        exitScreen.setScore(score.getValue()); // set the score on the exit screen
+        score.isVisible = false; // hide score  
+        bird.setPosition(sf::Vector2f(-400.0f, -400.0f)); // set bird position off the screen
+    }
+
     if (!exitScreen.isVisible && !startScreen.isVisible && !saveScoreScreen.isVisible && !scoreBoard.isVisible) { // check for collision between bird and window bounds only if not in exit screen and start screen and save score screen and score board is visible
 
         if (birdBounds.top < 0.0f) {
