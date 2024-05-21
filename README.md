@@ -1,4 +1,4 @@
-#Flappy Bird Clone with a twist.
+# Flappy Bird Clone with a twist
 
 This Flappy Bird clone has taught me more about object-oriented programming and improved my understanding of how to build a game from start to finish.
 
