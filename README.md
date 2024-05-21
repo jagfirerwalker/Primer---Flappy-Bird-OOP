@@ -4,7 +4,8 @@ This Flappy Bird clone has taught me more about object-oriented programming and 
 
 Available also on itch.io: https://jagfirerwalker.itch.io/why-are-pigeons
 
-Created by JagFirerwalker
+## Created by JagFirerwalker
+
 Date: 21/05/2024
 Reason:
 - Improve object-oriented programming
